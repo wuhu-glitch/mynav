@@ -1,4 +1,0 @@
-# SPA 回退：Cloudflare Pages 只对「不存在的路径」应用这条规则，
-# 已存在的静态文件（/assets/*、/nav.json、/_headers 等）仍按文件直接返回，
-# 因此深链接刷新不会 404，也不会覆盖真实资源。
-/*    /index.html   200
