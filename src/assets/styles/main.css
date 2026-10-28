@@ -1,0 +1,299 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==================== 自定义 CSS 变量 ==================== */
+:root {
+  /* 霓虹色系（根据 accentColor 动态调整） */
+  --mynav-cyan-default: #00f0ff;
+  --mynav-rgb-cyan-default: rgb(0, 240, 255);
+
+  /* 故障文字偏移色 */
+  --mynav-glitch-offset: #ff00aa;
+}
+
+.dark {
+  --mynav-cyan-default: #00f0ff;
+  --mynav-rgb-cyan-default: rgb(0, 240, 255);
+  --mynav-cyan: #22d3ee;
+  --mynav-cyan-400: #67e8f9;
+  --mynav-cyan-500: #22d3ee;
+  --mynav-cyan-600: #06b6d4;
+  --mynav-blue: #818cf8;
+  --mynav-blue-400: #a5b4fc;
+  --mynav-blue-500: #818cf8;
+  --mynav-blue-600: #6366f1;
+  --mynav-purple: #e879f9;
+  --mynav-purple-400: #f0abfc;
+  --mynav-purple-500: #e879f9;
+  --mynav-purple-600: #d946ef;
+  --mynav-magenta: #f472b6;
+  --mynav-magenta-400: #f9a8d4;
+  --mynav-magenta-500: #f472b6;
+  --mynav-magenta-600: #ec4899;
+  --mynav-lime: #bef264;
+  --mynav-lime-400: #d9f99d;
+  --mynav-lime-500: #bef264;
+  --mynav-lime-600: #84cc16;
+
+  --mynav-bg-base: #0f172a;
+  --mynav-bg-card: rgba(30, 41, 59, 0.7);
+  --mynav-text-main: #f8fafc;
+  --mynav-text-dim: #94a3b8;
+  --mynav-shadow-glow: rgba(34, 211, 238, 0.6);
+}
+
+.light {
+  --mynav-cyan-default: #00b4cc;
+  --mynav-cyan: #0891b2;
+  --mynav-cyan-400: #06b6d4;
+  --mynav-cyan-500: #0891b2;
+  --mynav-cyan-600: #0e7490;
+
+  --mynav-bg-base: #f8fafc;
+  --mynav-bg-card: rgba(255, 255, 255, 0.7);
+  --mynav-text-main: #0f172a;
+  --mynav-text-dim: #64748b;
+  --mynav-shadow-glow: rgba(8, 145, 178, 0.6);
+}
+
+/* 基础样式重置 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: var(--mynav-bg-base);
+  color: var(--mynav-text-main);
+  line-height: 1.6;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--mynav-cyan-default);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--mynav-cyan-400);
+}
+
+/* 霓虹发光文字 */
+.glow-text {
+  text-shadow: 0 0 10px var(--mynav-shadow-glow),
+               0 0 20px var(--mynav-shadow-glow),
+               0 0 40px var(--mynav-shadow-glow);
+  transition: all 0.3s ease;
+}
+
+/* 卡片样式 */
+.mynav-card {
+  position: relative;
+  border-radius: 12px;
+  background: var(--mynav-bg-card);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.mynav-card:hover {
+  border-color: var(--mynav-cyan-default);
+  box-shadow: 0 0 20px var(--mynav-shadow-glow),
+               0 0 40px rgba(34, 211, 238, 0.3);
+  transform: translateY(-4px);
+}
+
+/* 霓虹发光边框动画 */
+@keyframes border-flow {
+  0% {
+    border-color: rgba(34, 211, 238, 0.2);
+  }
+  50% {
+    border-color: var(--mynav-cyan-default);
+  }
+  100% {
+    border-color: rgba(34, 211, 238, 0.2);
+  }
+}
+
+.border-flow-animation {
+  animation: border-flow 3s ease-in-out infinite;
+}
+
+/* 赛博朋克背景网格 */
+.cyber-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image:
+    linear-gradient(rgba(34, 211, 238, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.05) 1px, transparent 1px);
+  background-size: 50px 50px;
+  pointer-events: none;
+}
+
+/* 赛博朋克背景电路板纹理 */
+.circuit-board {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2334d399' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  pointer-events: none;
+  opacity: 0.3;
+}
+
+/* 全屏扫描线特效 */
+.scanline-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 2px,
+    rgba(0, 0, 0, 0.03) 3px,
+    rgba(0, 0, 0, 0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* 光标拖尾特效 */
+.cursor-trail {
+  position: fixed;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--mynav-cyan-default) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 9998;
+  animation: fade-out 0.5s ease-out forwards;
+}
+
+@keyframes fade-out {
+  0% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(3);
+  }
+}
+
+/* 赛博故障文字特效 */
+.glitch-text {
+  position: relative;
+  color: var(--mynav-text-main);
+}
+
+.glitch-text::before,
+.glitch-text::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--mynav-bg-base);
+}
+
+.glitch-text::before {
+  left: 2px;
+  text-shadow: -2px 0 var(--mynav-glitch-offset);
+  clip: rect(24px, 550px, 90px, 0);
+  animation: glitch-anim-1 2.5s infinite linear alternate-reverse;
+}
+
+.glitch-text::after {
+  left: -2px;
+  text-shadow: -2px 0 var(--mynav-cyan-default);
+  clip: rect(85px, 550px, 140px, 0);
+  animation: glitch-anim-2 3s infinite linear alternate-reverse;
+}
+
+@keyframes glitch-anim-1 {
+  0% {
+    clip: rect(20px, 9999px, 10px, 0);
+  }
+  20% {
+    clip: rect(80px, 9999px, 90px, 0);
+  }
+  40% {
+    clip: rect(10px, 9999px, 50px, 0);
+  }
+  60% {
+    clip: rect(70px, 9999px, 30px, 0);
+  }
+  80% {
+    clip: rect(30px, 9999px, 60px, 0);
+  }
+  100% {
+    clip: rect(50px, 9999px, 20px, 0);
+  }
+}
+
+@keyframes glitch-anim-2 {
+  0% {
+    clip: rect(60px, 9999px, 80px, 0);
+  }
+  20% {
+    clip: rect(10px, 9999px, 30px, 0);
+  }
+  40% {
+    clip: rect(40px, 9999px, 20px, 0);
+  }
+  60% {
+    clip: rect(90px, 9999px, 40px, 0);
+  }
+  80% {
+    clip: rect(20px, 9999px, 70px, 0);
+  }
+  100% {
+    clip: rect(50px, 9999px, 10px, 0);
+  }
+}
+
+/* 响应式调整 */
+@media (max-width: 640px) {
+  .mynav-title {
+    font-size: 1.75rem;
+  }
+
+  .mynav-subtitle {
+    font-size: 0.75rem;
+  }
+}
+
+/* 打印样式 */
+@media print {
+  * {
+    background: #fff !important;
+    color: #000 !important;
+  }
+}
