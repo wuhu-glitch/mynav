@@ -131,6 +131,16 @@ npm test
 覆盖两处纯逻辑：`src/utils/backup.js`（备份解析与合并规则，14 条断言）
 和 `src/utils/navDiff.js`（本地改动差异的叠加规则，13 条断言）。
 
+### 6. 构建产物冒烟测试（可选）
+
+```bash
+npm run build
+npm run smoke
+```
+
+用无头浏览器打开 `dist`，点开「设置」与「编辑模式 → 新增链接」，断言异步分包后的
+面板与弹窗确实渲染出来。需要本机有 Edge 或 Chrome（找不到时可用 `EDGE_PATH` 指定）。
+
 ## 🌍 Cloudflare Pages 部署
 
 ### 方式一：手动上传（推荐新手）
