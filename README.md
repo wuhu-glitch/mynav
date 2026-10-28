@@ -165,7 +165,21 @@ npm run smoke
 
 ## 🌍 发布与部署
 
-三条路，按推荐顺序排列。项目当前是本地仓库、`main` 分支、还没有远程。
+三条路，按推荐顺序排列。
+
+> **当前线上实例（已实际部署）**
+>
+> | 项 | 值 |
+> | --- | --- |
+> | 站点地址 | https://mynav-7i4.pages.dev |
+> | GitHub 仓库 | `wuhu-glitch/mynav`（public） |
+> | Pages 项目 | `mynav`（Production 分支 `main`） |
+> | KV 命名空间 | `mynav-kv` → `MYNAV_KV` |
+> | 部署方式 | 本地直传（Git 集成已断开，见「方式三」） |
+>
+> 已配置的环境变量：`MYNAV_SESSION_SECRET`（secret_text）、`NODE_VERSION=22`。
+> 管理员口令尚未写入 KV，因此当前 `/api/session` 返回 `configured: false`，
+> 站点是「纯静态只读」状态 —— 完成下面「初始化管理员口令」即可开启管理。`
 
 ### 方式一：GitHub + Cloudflare Pages 连接（推荐，零密钥）
 
@@ -207,15 +221,37 @@ npm run smoke
 
 若你的 Pages 项目名不叫 `mynav`，同步修改 `deploy.yml` 里的 `--project-name`。
 
-### 方式三：本地直传 dist（不接 Git）
+### 方式三：本地直传 dist（本项目当前实际使用）
+
+Git 集成本来配好了，但 `github.com/apps/*` 在本机网络下打不开、仓库又显示「已与 Git 帐户断开连接」，
+所以改成直传：本地构建 → `wrangler pages deploy` 上传 `dist` + `functions/`。
 
 ```bash
-npm run build
-npx wrangler pages deploy dist --project-name=mynav
+# 1) 把 API Token 放进根目录 .cf-token（已在 .gitignore 里）
+# 2) 每次发版：
+CLOUDFLARE_API_TOKEN=$(cat .cf-token) npm run deploy
 ```
 
-首次运行会要求 `wrangler login`（浏览器授权）。也可以走控制台
-Create → Pages → **Upload assets**，直接把 `dist` 拖进去。
+`npm run deploy` 等价于 `npm run build && npx wrangler@3 pages deploy dist --project-name mynav --branch main`。
+
+Token 权限（Account 级，不需要 Zone）：
+
+| 资源 | 权限 |
+| --- | --- |
+| Cloudflare Pages | Edit |
+| Workers KV Storage | Edit |
+| Account Settings | Read |
+
+> ⚠️ **绑定会被部署覆盖**：`wrangler pages deploy` 会用它解析到的 `wrangler.toml` 同步项目配置。
+> 因此 `name` / `pages_build_output_dir` / `compatibility_date` 必须写在 `[[kv_namespaces]]`
+> **之前**，否则 wrangler 会判定配置文件「缺少 pages_build_output_dir」而整体忽略，
+> 部署后项目里的 KV 绑定会被清空，`/api/nav` 就会返回 `reason: "kv_not_bound"`。
+> 部署完可以顺手验一下：`curl https://mynav-7i4.pages.dev/api/nav` 应返回 `{"ok":true,"source":"none"}` 而不是 `kv_not_bound`。
+
+> ⚠️ **pages.dev 在某些网络下不可达**：本机 `curl` 该域名是 `000`（DNS 正常、TCP 被拦），
+> 换自定义域名或走代理才能稳定访问。
+
+也可以走控制台 Create → Pages → **Upload assets**，直接把 `dist` 拖进去（但拖拽不会带 `functions/`）。
 
 ### SPA 路由说明
 
@@ -312,8 +348,8 @@ Create → Pages → **Upload assets**，直接把 `dist` 拖进去。
 
 **1. 创建 KV 命名空间**
 
-Cloudflare 控制台 → Workers & Pages → KV → Create namespace，名字随意（如 `mynav-nav`），
-记下 namespace id，填进仓库根目录的 `wrangler.toml`：
+Cloudflare 控制台 → Workers & Pages → KV → Create namespace。本项目已创建 `mynav-kv`，
+namespace id 已写进仓库根目录的 `wrangler.toml`：
 
 ```toml
 [[kv_namespaces]]

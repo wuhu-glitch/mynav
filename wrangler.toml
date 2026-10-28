@@ -1,21 +1,25 @@
 # Cloudflare Pages + Functions 配置
 #
 # 用途：
-#   1. 本地用 `npx wrangler pages dev dist` 跑通 Functions（含 KV 读写）时读取此文件；
-#   2. 线上部署由 Pages 项目设置控制，KV 绑定在控制台里配置（见下方说明）。
+#   1. 本地用 `npx wrangler pages dev dist` 跑通 Functions（含 KV 读写）；
+#   2. 线上用 `npx wrangler pages deploy dist --project-name mynav --branch main` 直接上传。
 #
-# 关于 KV 绑定（重要）：
-#   - 线上请不要把占位符写进这里。Pages 部署时会解析本文件的 [[kv_namespaces]]，
-#     一旦 id 是占位字符串就会直接报
-#     `Invalid KV namespace ID (REPLACE_WITH_YOUR_KV_NAMESPACE_ID)`，导致 Functions 发布失败。
-#   - 线上绑定路径：Pages 项目 → Settings → Functions → KV namespace bindings
-#     → Add binding，Variable name 填 MYNAV_KV，选你创建的命名空间。
-#   - 本地调试时再解开下面注释，并把 id 换成真实值（wrangler kv namespace create MYNAV_KV 的输出）。
+# 关于 KV 绑定（踩过的坑，务必保留）：
+#   - wrangler 直接上传时会用本文件的绑定同步到 Pages 项目配置。如果这里没有
+#     [[kv_namespaces]]，部署后项目里的 KV 绑定会被清空，Functions 运行时
+#     env.MYNAV_KV 就是 undefined（表现为 /api/nav 返回 `reason: "kv_not_bound"`）。
+#   - id 绝不能是占位符：Pages 会解析本文件，占位字符串直接报
+#     `Invalid KV namespace ID (...)`。
+#   - 前三项（name / pages_build_output_dir / compatibility_date）必须写在
+#     绑定段之前，否则 wrangler 会判定本文件「缺少 pages_build_output_dir」
+#     而整体忽略它，绑定也就不会同步。
 #
-# [[kv_namespaces]]
-# binding = "MYNAV_KV"
-# id = "<你的 KV 命名空间 ID>"
+# 当前命名空间：mynav-kv
 
 name = "mynav"
-compatibility_date = "2024-11-01"
 pages_build_output_dir = "dist"
+compatibility_date = "2024-11-01"
+
+[[kv_namespaces]]
+binding = "MYNAV_KV"
+id = "1d40c13788f8489985bfc9333b681367"

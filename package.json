@@ -14,7 +14,8 @@
     "icons": "node scripts/build-icons.mjs",
     "hash-password": "node scripts/hash-password.mjs",
     "test": "node scripts/test-admin-mode.mjs && node scripts/test-backup.mjs && node scripts/test-nav-diff.mjs && node scripts/test-import-flow.mjs && node scripts/test-url.mjs && node scripts/test-session-token.mjs && node scripts/test-auth-handlers.mjs && node scripts/test-cloud-server.mjs",
-    "smoke": "node scripts/smoke-e2e.mjs"
+    "smoke": "node scripts/smoke-e2e.mjs",
+    "deploy": "npm run build && npx --yes wrangler@3 pages deploy dist --project-name mynav --branch main --commit-dirty=true"
   },
   "dependencies": {
     "vue": "3.5.44"
