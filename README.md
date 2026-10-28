@@ -37,14 +37,21 @@ mynav/
 │   ├── _headers                    # Cloudflare 安全响应头 / 缓存策略
 │   ├── _redirects                  # SPA 回退规则
 │   └── _routes.json                # Functions 路由声明（只让 /api/* 走函数）
-├── functions/                      # Cloudflare Pages Functions（管理员鉴权）
+├── functions/                      # Cloudflare Pages Functions（鉴权 + 云端公共配置）
 │   ├── _lib/
 │   │   ├── session.js              # 会话令牌签发/校验（HMAC + 常量时间比较）
-│   │   └── auth.js                 # 口令比较与环境变量校验
+│   │   ├── auth.js                 # 口令摘要比较、统一 JSON 响应
+│   │   ├── password.js             # 口令哈希（PBKDF2 加盐，存 KV）
+│   │   ├── navstore.js             # KV 存储层：清洗、版本、回滚、限频、登录熔断
+│   │   └── admin.js                # requireAdmin / 客户端 IP 折键
 │   └── api/
-│       ├── auth.js                 # POST /api/auth   登录换会话
-│       ├── session.js              # GET  /api/session 查询身份
-│       └── logout.js               # POST /api/logout  退出
+│       ├── auth.js                 # POST /api/auth     登录换会话
+│       ├── session.js              # GET  /api/session  查询身份
+│       ├── logout.js               # POST /api/logout   退出
+│       ├── nav.js                  # GET/POST /api/nav  读配置 / 发布版本
+│       ├── versions.js             # GET  /api/versions 版本时间轴
+│       └── rollback.js             # POST /api/rollback 回滚
+├── wrangler.toml                   # 本地 Pages Functions + KV 绑定配置
 └── src/
     ├── assets/styles/main.css      # 全局样式 + 霓虹特效
     ├── App.vue                     # 根组件（主界面）
@@ -59,6 +66,7 @@ mynav/
     │   ├── CyberEffect.vue         # 赛博特效开关
     │   ├── SettingsPanel.vue       # 设置面板
     │   ├── EditModal.vue           # 编辑弹窗
+    │   ├── CloudPanel.vue          # 云端公共配置（发布 / 版本 / 回滚）
     │   └── AdminLogin.vue          # 管理员登录弹窗
     ├── layouts/
     │   └── DefaultLayout.vue       # 默认布局
@@ -69,6 +77,7 @@ mynav/
     ├── utils/                      # 纯逻辑工具（可直接单测）
     │   ├── adminMode.js            # 管理员身份（服务端接口的调用封装）
     │   ├── backup.js               # 备份文件校验与合并
+    │   ├── cloudNav.js             # 云端配置接口封装（超时 / 降级 / 缓存）
     │   └── navDiff.js              # 链接增删改的差异计算
     └── icons/                      # 图标离线集合
         ├── index.js                # 启动时注册图标集
@@ -281,50 +290,108 @@ Create → Pages → **Upload assets**，直接把 `dist` 拖进去。
 
 ### 管理员身份由服务端判定
 
-编辑权限不是前端开关，而是 `functions/` 下的三个 Pages Functions 接口：
+编辑权限不是前端开关，而是 `functions/` 下的 Pages Functions 接口：
 
-| 接口 | 方法 | 作用 |
-| --- | --- | --- |
-| `/api/auth` | POST | 校验口令 → 下发 HttpOnly 会话 Cookie |
-| `/api/session` | GET | 查询当前会话是否为管理员 |
-| `/api/logout` | POST | 退出（清除 Cookie） |
+| 接口 | 方法 | 权限 | 作用 |
+| --- | --- | --- | --- |
+| `/api/auth` | POST | 公开 | 校验口令（哈希存在 KV）→ 下发 HttpOnly 会话 Cookie |
+| `/api/session` | GET | 公开 | 查询当前会话是否为管理员 |
+| `/api/logout` | POST | 公开 | 退出（清除 Cookie） |
+| `/api/nav` | GET | 公开 | 读取云端公共配置；无数据时返回 `source: "none"` |
+| `/api/nav` | POST | 管理员 | 发布当前配置为新版本（带备注、限频） |
+| `/api/versions` | GET | 管理员 | 版本时间轴（最近 20 个，不含正文） |
+| `/api/rollback` | POST | 管理员 | 回滚到指定版本（生成新版本，不删历史） |
 
 登录入口有两处：头部右上角的**锁形按钮**，或访问一次带 `?admin=1` 的地址
 （该参数只负责弹出登录框，不再授予任何权限）。登录成功后 12 小时内免重复登录；
 点「开锁」图标即可退出。
 
-### 部署时必须设置两个环境变量
+### 云端公共配置（Cloudflare KV）
 
-在 Cloudflare Pages 项目 → **Settings → Environment variables** 添加（Production 与 Preview 都要）：
+这一步决定访客看到的是「你发布的链接」还是「仓库里的 nav.json」。
 
-| 变量 | 要求 | 说明 |
-| --- | --- | --- |
-| `MYNAV_ADMIN_PASSWORD` | ≥ 8 位，建议 16 位以上随机串 | 管理员口令，只有服务端读得到 |
-| `MYNAV_SESSION_SECRET` | ≥ 16 位，建议 32 位以上随机串 | 会话签名密钥，泄露等于可伪造登录 |
+**1. 创建 KV 命名空间**
 
-这两个变量缺失时，`/api/auth` 返回 503、站点保持只读，并提示「服务端未配置口令」。
-生成随机串可以用：`node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`。
+Cloudflare 控制台 → Workers & Pages → KV → Create namespace，名字随意（如 `mynav-nav`），
+记下 namespace id，填进仓库根目录的 `wrangler.toml`：
 
-### 本地开发怎么测登录
+```toml
+[[kv_namespaces]]
+binding = "MYNAV_KV"
+id = "你的 namespace id"
+```
 
-`vite dev` / `vite preview` 不带 Functions，访问 `/api/*` 会落到 SPA 回退，页面提示
-「鉴权接口未启用」。要连鉴权一起测：
+**2. 绑定到 Pages 项目**
+
+Pages 项目 → Settings → Functions → KV namespace bindings → Add binding：
+
+- Variable name：`MYNAV_KV`（必须一致）
+- KV namespace：选刚创建的那个
+
+**3. 设置会话密钥**
+
+Settings → Environment variables 添加 `MYNAV_SESSION_SECRET`（≥ 16 位，建议 32 位随机串），
+Production 与 Preview 都要。生成方式：
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+```
+
+**4. 初始化管理员口令（写进 KV，不写进仓库）**
+
+```bash
+npm run hash-password -- "你的口令"
+# 输出 scrypt1$<salt>$<hash>，复制整串
+
+npx wrangler kv key put "auth:password" "scrypt1$..." --namespace-id=<namespace id> --remote
+```
+
+口令只在本机命令行出现一次；KV 里存的是 PBKDF2-SHA256（12 万次迭代）加盐哈希，不可逆推。
+`MYNAV_ADMIN_PASSWORD` 环境变量已不再是必需项，仅作旧部署迁移的兜底。
+
+**5. 打开开关**
+
+站点 → 设置 → 云端公共配置 → 启用。关闭时整站不访问任何 `/api`，保持纯静态。
+
+### 发布、版本与回滚
+
+- 管理员登录后，页头进入编辑模式，增删改链接（改动先落本地，便于预览）；
+- 设置 → 云端公共配置 → **云端配置与版本** → 「发布当前配置」写入 KV，访客刷新即可看到；
+- 每次发布都会生成一个带时间戳的快照（最近 20 个），时间轴上可一键回滚；
+- 回滚本身也会生成新版本，备注记为「回滚自 v-xxx」，审计轨迹不断；
+- 发布做了三层边界：体积上限 200KB、链接总数上限 500、清洗掉非 http(s) 链接，
+  并且两次保存最短间隔 8 秒（挡脚本连点）。
+
+### 加载降级
+
+开启云端开关后读取顺序是 **KV → 本地缓存 → 静态 nav.json**：
+
+- KV 不可用（未绑定 / 网络失败 / 无数据）时用上次成功读到的缓存；
+- 缓存也没有时退回仓库里的 `nav.json`，页面永远有内容；
+- 云端面板会直接显示当前来源与版本号，便于排查。
+
+### 本地开发怎么测完整链路
+
+`vite dev` / `vite preview` 不带 Functions，`/api/*` 会落到 SPA 回退，页面提示「鉴权接口未启用」。
+要连 KV 与鉴权一起测：
 
 ```bash
 npm run build
 npx wrangler pages dev dist --compatibility-date=2026-01-01
-# 另开一个终端设置本地变量，或用 .dev.vars 文件：
-# MYNAV_ADMIN_PASSWORD=local-test-pass
+# 本地变量放 .dev.vars（不要提交）：
 # MYNAV_SESSION_SECRET=local-test-secret-0123456789
 ```
 
+本地 KV 用 `npx wrangler kv key put ... --local`（或 `--preview`）写入，线上用 `--remote`。
+
 ### 安全边界
 
-- 口令只存在环境变量里，仓库与前端产物都不含明文；比较走常量时间，不泄露长度与前缀
+- 口令哈希只存在 KV；仓库与前端产物都不含明文，比较走常量时间且带盐迭代
 - 会话 Cookie 是 `HttpOnly; Secure; SameSite=Strict`，页面脚本读不到，XSS 也偷不走
-- **鉴权只保护身份**：登录后的编辑仍只写入你自己浏览器的 `mynav-custom-nav`，
-  线上 `nav.json` 只读。想让改动对所有人生效需要 KV/D1 + 写接口，本项目未实现
-- 爆破防护请在 Cloudflare 控制台给 `/api/auth` 配 Rate Limiting 规则
+- 写接口全部先验签 Cookie；未登录直接 401，不依赖前端隐藏按钮
+- 登录失败按 IP 记在 KV：连续 5 次锁 60 秒（KV 最终一致，秒级误差可接受）；
+  真正的流量防护仍建议在控制台给 `/api/auth` 配 Rate Limiting 规则
+- 访客的个人偏好与本地改动**始终只存本机**，不会因为开了云端就被上传
 
 更多细节见 [SECURITY.md](SECURITY.md)。
 

@@ -20,7 +20,7 @@ const props = defineProps({
   canEdit: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['close', 'import'])
+const emit = defineEmits(['close', 'import', 'open-cloud', 'cloud-toggle'])
 
 const { settings, resetSettings, exportData } = useLocalStorage()
 const { resetCustomNav } = useNavData()
@@ -417,6 +417,43 @@ const triggerImport = () => importInput.value?.click()
 
           <p class="section-tip">
             备份内容：外观设置 + 你新增/修改过的链接。分类与搜索引擎始终以 nav.json 为准，不会被备份覆盖。
+          </p>
+        </section>
+
+        <!-- ==================== 9. 云端公共配置 ==================== -->
+        <section class="panel-section">
+          <h3 class="section-title">
+            <IconifyIcon icon="mdi:cloud-outline" />
+            云端公共配置
+          </h3>
+
+          <label class="switch-row">
+            <span class="switch-text">
+              启用云端公共配置
+              <em class="switch-desc">关闭时整站不访问任何接口，保持纯静态</em>
+            </span>
+            <button
+              class="switch"
+              :class="{ 'switch-on': settings.cloudSync }"
+              type="button"
+              role="switch"
+              :aria-checked="Boolean(settings.cloudSync)"
+              @click="emit('cloud-toggle', !settings.cloudSync)"
+            >
+              <span class="switch-knob"></span>
+            </button>
+          </label>
+
+          <div class="data-actions">
+            <button class="data-btn" type="button" @click="emit('open-cloud')">
+              <IconifyIcon icon="mdi:cloud-cog-outline" />
+              云端配置与版本
+            </button>
+          </div>
+
+          <p class="section-tip">
+            打开后从 Cloudflare KV 读取管理员发布的公共链接，访客看到同一份内容；
+            个人偏好（主题/特效/本地改动）仍然只存本机，绝不上传。
           </p>
         </section>
       </div>

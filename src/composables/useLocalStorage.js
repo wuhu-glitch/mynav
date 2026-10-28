@@ -48,7 +48,11 @@ export const DEFAULT_SETTINGS = {
   // 显示开关
   showClock: true,
   showHitokoto: false,
-  showPinned: true
+  showPinned: true,
+
+  // 云端公共配置（默认关闭：关掉时整站不发任何 /api 请求，纯静态）
+  // 打开后才会读 Cloudflare KV 里的公共配置；个人偏好始终只在本机。
+  cloudSync: false
 }
 
 // 深合并：保证嵌套对象（如 effects）不会因为旧备份缺键而丢字段

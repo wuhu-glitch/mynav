@@ -1,0 +1,20 @@
+# Cloudflare Pages + Functions 配置
+#
+# 用途：把 /api/* 的 Pages Functions 与 KV 命名空间绑定在一起，
+# 这样本地 `npx wrangler pages dev dist` 也能跑通云端配置读写。
+#
+# 部署注意：
+#   1. 先在 Cloudflare 控制台创建一个 KV 命名空间（Workers & Pages → KV），
+#      把下面的 id 换成你自己的；
+#   2. 若已在 Pages 项目的 Settings → Functions → KV namespace bindings 里绑定，
+#      这个文件只用于本地开发，线上以控制台绑定为准；
+#   3. 换行符保持 LF，避免 wrangler 解析异常。
+
+name = "mynav"
+compatibility_date = "2024-11-01"
+pages_build_output_dir = "dist"
+
+# KV：公共导航配置、版本快照、口令哈希都放这里
+[[kv_namespaces]]
+binding = "MYNAV_KV"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
