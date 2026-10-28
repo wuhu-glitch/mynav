@@ -46,8 +46,14 @@ jobs:
           test -f dist/nav.json || { echo "缺少 dist/nav.json"; exit 1; }
           test -f dist/_headers || { echo "缺少 dist/_headers（安全响应头会失效）"; exit 1; }
           test -f dist/_redirects || { echo "缺少 dist/_redirects（深链接会 404）"; exit 1; }
+          test -f dist/_routes.json || { echo "缺少 dist/_routes.json（Functions 路由声明）"; exit 1; }
           node -e "JSON.parse(require('fs').readFileSync('dist/nav.json','utf8'))" || { echo "nav.json 不是合法 JSON"; exit 1; }
+          node -e "JSON.parse(require('fs').readFileSync('dist/_routes.json','utf8'))" || { echo "_routes.json 不是合法 JSON"; exit 1; }
           grep -q "Content-Security-Policy" dist/_headers || { echo "CSP 缺失"; exit 1; }
+          # 鉴权接口丢失 = 编辑入口永远打不开，属于必须拦住的配置缺失
+          test -f functions/api/auth.js || { echo "缺少 functions/api/auth.js（管理员登录会失效）"; exit 1; }
+          test -f functions/api/session.js || { echo "缺少 functions/api/session.js"; exit 1; }
+          test -f functions/api/logout.js || { echo "缺少 functions/api/logout.js"; exit 1; }
           echo "产物检查通过"
 
       - name: 上传构建产物（便于排查，不参与部署）

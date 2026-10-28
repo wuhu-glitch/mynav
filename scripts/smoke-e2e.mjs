@@ -141,34 +141,41 @@ async function main() {
     return { ok: !!el, closed: !document.querySelector('.mynav-settings-panel') }
   })()`)
 
-  // 默认访客是只读的：不应出现编辑入口，但设置按钮要在
+  // 默认访客是只读的：不应出现编辑入口；要有设置按钮与「管理员登录」解锁按钮
   const readonly = await evaluate(`({
     editBtn: [...document.querySelectorAll('button')].some((b) => b.title === '进入编辑模式'),
-    settingsBtn: [...document.querySelectorAll('button')].some((b) => b.title === '设置')
+    settingsBtn: [...document.querySelectorAll('button')].some((b) => b.title === '设置'),
+    loginBtn: [...document.querySelectorAll('button')].some((b) => b.title === '管理员登录')
   })`)
 
-  // 带 ?admin=1 重进页面：应出现编辑入口，并能打开编辑弹窗
+  // 带 ?admin=1 重进页面：只应弹出登录框，**不能**因此获得编辑权限
   await send('Page.enable')
   await send('Page.navigate', { url: `http://127.0.0.1:${PORT}/?admin=1` })
   await sleep(2600)
 
-  const modal = await evaluate(`(async () => {
-    const editBtn = [...document.querySelectorAll('button')].find((b) => b.title === '进入编辑模式')
-    if (!editBtn) return { ok: false, reason: '管理员模式下仍找不到编辑入口' }
-    editBtn.click()
-    await new Promise((r) => setTimeout(r, 500))
-    const addBtn = [...document.querySelectorAll('button')].find((b) => b.title === '新增链接')
-    if (!addBtn) return { ok: false, reason: '找不到新增按钮' }
-    addBtn.click()
-    await new Promise((r) => setTimeout(r, 1600))
-    const el = document.querySelector('.mynav-edit-modal')
+  const login = await evaluate(`(async () => {
+    const dialog = document.querySelector('.mynav-login')
+    if (!dialog) return { ok: false, reason: '带 ?admin=1 访问时没有弹出登录框' }
+
+    // 静态服务器没有 Functions，提交必然失败：断言错误提示出现且登录框不关闭
+    const input = dialog.querySelector('input[type="password"]')
+    input.value = 'some-password'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await new Promise((r) => setTimeout(r, 120))
+    dialog.querySelector('button[type="submit"]').click()
+    await new Promise((r) => setTimeout(r, 1400))
+
+    const errorText = document.querySelector('.mynav-login-error')?.textContent?.trim() || ''
     return {
-      ok: !!el && getComputedStyle(el).display !== 'none',
-      fields: el ? el.querySelectorAll('input, select, textarea').length : 0
+      ok: true,
+      stillOpen: !!document.querySelector('.mynav-login'),
+      errorShown: errorText.length > 0,
+      errorText,
+      editBtn: [...document.querySelectorAll('button')].some((b) => b.title === '进入编辑模式')
     }
   })()`)
 
-  const result = { initial, panel, readonly, modal }
+  const result = { initial, panel, readonly, login }
   console.log(JSON.stringify(result, null, 2))
 
   ws.close()
@@ -181,8 +188,11 @@ async function main() {
     panel.ok &&
     readonly.editBtn === false &&
     readonly.settingsBtn === true &&
-    modal.ok &&
-    modal.fields > 0
+    readonly.loginBtn === true &&
+    login.ok &&
+    login.stillOpen &&
+    login.errorShown &&
+    login.editBtn === false
   process.exit(passed ? 0 : 1)
 }
 

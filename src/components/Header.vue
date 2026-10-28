@@ -25,7 +25,7 @@ const props = defineProps({
   isSettingsOpen: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['toggle-edit', 'toggle-settings', 'add'])
+const emit = defineEmits(['toggle-edit', 'toggle-settings', 'add', 'admin-login', 'admin-logout'])
 
 const { settings } = useLocalStorage()
 
@@ -61,6 +61,29 @@ const titleClass = computed(() => [
           @click="emit('toggle-edit')"
         >
           <IconifyIcon icon="mdi:pencil" />
+        </button>
+
+        <!-- 管理员身份：未登录显示解锁入口，登录后显示退出入口。
+             身份由服务端 Cookie 判定，按钮只负责发起请求，不做任何本地判断。 -->
+        <button
+          v-if="!props.canEdit"
+          class="mynav-icon-btn"
+          type="button"
+          title="管理员登录"
+          aria-label="管理员登录"
+          @click="emit('admin-login')"
+        >
+          <IconifyIcon icon="mdi:lock-outline" />
+        </button>
+        <button
+          v-else
+          class="mynav-icon-btn"
+          type="button"
+          title="退出管理员模式"
+          aria-label="退出管理员模式"
+          @click="emit('admin-logout')"
+        >
+          <IconifyIcon icon="mdi:lock-open-variant" />
         </button>
 
         <!-- 设置面板开关 -->

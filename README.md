@@ -33,7 +33,18 @@ mynav/
 ├── README.md                       # 项目说明文档
 ├── MyNav-架构设计.md               # 架构设计文档
 ├── public/
-│   └── nav.json                    # 导航数据源（核心配置）
+│   ├── nav.json                    # 导航数据源（核心配置）
+│   ├── _headers                    # Cloudflare 安全响应头 / 缓存策略
+│   ├── _redirects                  # SPA 回退规则
+│   └── _routes.json                # Functions 路由声明（只让 /api/* 走函数）
+├── functions/                      # Cloudflare Pages Functions（管理员鉴权）
+│   ├── _lib/
+│   │   ├── session.js              # 会话令牌签发/校验（HMAC + 常量时间比较）
+│   │   └── auth.js                 # 口令比较与环境变量校验
+│   └── api/
+│       ├── auth.js                 # POST /api/auth   登录换会话
+│       ├── session.js              # GET  /api/session 查询身份
+│       └── logout.js               # POST /api/logout  退出
 └── src/
     ├── assets/styles/main.css      # 全局样式 + 霓虹特效
     ├── App.vue                     # 根组件（主界面）
@@ -47,7 +58,8 @@ mynav/
     │   ├── Clock.vue               # 赛博时钟
     │   ├── CyberEffect.vue         # 赛博特效开关
     │   ├── SettingsPanel.vue       # 设置面板
-    │   └── EditModal.vue           # 编辑弹窗
+    │   ├── EditModal.vue           # 编辑弹窗
+    │   └── AdminLogin.vue          # 管理员登录弹窗
     ├── layouts/
     │   └── DefaultLayout.vue       # 默认布局
     ├── composables/                # 组合式函数
@@ -55,6 +67,7 @@ mynav/
     │   ├── useLocalStorage.js      # 本地存储管理
     │   └── useCyberTheme.js        # 赛博主题管理
     ├── utils/                      # 纯逻辑工具（可直接单测）
+    │   ├── adminMode.js            # 管理员身份（服务端接口的调用封装）
     │   ├── backup.js               # 备份文件校验与合并
     │   └── navDiff.js              # 链接增删改的差异计算
     └── icons/                      # 图标离线集合
@@ -163,6 +176,12 @@ npm run smoke
    - Build output directory：`dist`
    - 环境变量：`NODE_VERSION = 22`（Pages 默认 Node 版本可能偏低）
 4. 之后每次 push 到 `main` 自动构建发布，PR 会自动生成预览环境。
+5. **再补两个鉴权环境变量**（否则站点永远是只读）：
+   - `MYNAV_ADMIN_PASSWORD`：管理员口令（≥ 8 位，建议 16 位随机串）
+   - `MYNAV_SESSION_SECRET`：会话签名密钥（≥ 16 位，建议 32 位随机串）
+
+> `functions/` 目录会被 Pages 自动识别并部署，无需额外配置；
+> `public/_routes.json` 只让 `/api/*` 走函数，静态资源不会被函数拖慢。
 
 > Pages 项目名决定默认域名，形如 `<项目名>.pages.dev`。
 
@@ -195,6 +214,10 @@ Create → Pages → **Upload assets**，直接把 `dist` 拖进去。
 因此刷新任意路径（例如 `/settings`）都会回落到 `index.html`，**不需要**再去控制台配额外的路由规则。
 打包产物里可直接确认：`dist/_redirects`。
 
+`public/_routes.json` 把 `/api/*` 声明为 Functions 路由。Cloudflare 的路由顺序是
+**先匹配 Functions，再走 _redirects**，所以 `/api/auth` 不会被 SPA 回退吃掉；
+其余路径全部按静态资源处理。
+
 ## ⚙️ 导航数据管理
 
 所有导航链接配置位于 `public/nav.json`，支持通过三个方式管理：
@@ -205,8 +228,10 @@ Create → Pages → **Upload assets**，直接把 `dist` 拖进去。
 
 ### 方式二：浏览器编辑模式（UI 操作）
 
-1. 点击右上角 ⚙️ 设置图标
-2. 开启编辑模式（小铅笔图标）
+先登录管理员（头部右上角锁形按钮，或访问 `?admin=1` 打开登录框），然后：
+
+1. 点击右上角锁形按钮登录 → 登录后出现铅笔图标
+2. 点铅笔进入编辑模式
 3. 点击任意链接卡片进行编辑
 4. 添加/删除/修改链接
 
@@ -243,9 +268,10 @@ Create → Pages → **Upload assets**，直接把 `dist` 拖进去。
 | --- | --- |
 | `mynav-settings` | 外观 / 布局 / 特效 / 显示开关等偏好 |
 | `mynav-custom-nav` | 相对 nav.json 的链接改动（overrides + deleted） |
-| `mynav-admin` | 是否记住了「管理员模式」（默认没有） |
 
-## 🔒 只读模式（访客能做什么）
+> 旧版本的 `mynav-admin` 键已废弃：管理员身份改为服务端 HttpOnly Cookie，不再写 localStorage。
+
+## 🔒 只读模式与管理员登录
 
 默认**所有人都是只读访客**：
 
@@ -253,33 +279,54 @@ Create → Pages → **Upload assets**，直接把 `dist` 拖进去。
 - 能看到时钟、能改自己的外观设置（主题色 / 背景 / 特效，只存在他自己浏览器）
 - 看不到编辑入口：铅笔按钮、新增链接、卡片点击编辑、设置里的「数据与备份」区都不渲染
 
-这些限制在前端实现（`src/utils/adminMode.js` + `Header.vue` 的 `canEdit` 属性），
-`App.vue` 的 `openEdit` 还有一次兜底校验，非管理员即使强行触发事件也打不开编辑弹窗。
+### 管理员身份由服务端判定
 
-### 站长如何开启编辑
+编辑权限不是前端开关，而是 `functions/` 下的三个 Pages Functions 接口：
 
-第一次访问时在地址后面加上 `?admin=1`：
+| 接口 | 方法 | 作用 |
+| --- | --- | --- |
+| `/api/auth` | POST | 校验口令 → 下发 HttpOnly 会话 Cookie |
+| `/api/session` | GET | 查询当前会话是否为管理员 |
+| `/api/logout` | POST | 退出（清除 Cookie） |
 
+登录入口有两处：头部右上角的**锁形按钮**，或访问一次带 `?admin=1` 的地址
+（该参数只负责弹出登录框，不再授予任何权限）。登录成功后 12 小时内免重复登录；
+点「开锁」图标即可退出。
+
+### 部署时必须设置两个环境变量
+
+在 Cloudflare Pages 项目 → **Settings → Environment variables** 添加（Production 与 Preview 都要）：
+
+| 变量 | 要求 | 说明 |
+| --- | --- | --- |
+| `MYNAV_ADMIN_PASSWORD` | ≥ 8 位，建议 16 位以上随机串 | 管理员口令，只有服务端读得到 |
+| `MYNAV_SESSION_SECRET` | ≥ 16 位，建议 32 位以上随机串 | 会话签名密钥，泄露等于可伪造登录 |
+
+这两个变量缺失时，`/api/auth` 返回 503、站点保持只读，并提示「服务端未配置口令」。
+生成随机串可以用：`node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`。
+
+### 本地开发怎么测登录
+
+`vite dev` / `vite preview` 不带 Functions，访问 `/api/*` 会落到 SPA 回退，页面提示
+「鉴权接口未启用」。要连鉴权一起测：
+
+```bash
+npm run build
+npx wrangler pages dev dist --compatibility-date=2026-01-01
+# 另开一个终端设置本地变量，或用 .dev.vars 文件：
+# MYNAV_ADMIN_PASSWORD=local-test-pass
+# MYNAV_SESSION_SECRET=local-test-secret-0123456789
 ```
-https://你的域名/?admin=1
-```
 
-参数会被记住到 localStorage（键 `mynav-admin`），同时地址栏里的参数会被自动抹掉，
-所以之后正常打开就是编辑态，分享出去的链接也不会带上这个参数。
+### 安全边界
 
-关闭编辑权限：
+- 口令只存在环境变量里，仓库与前端产物都不含明文；比较走常量时间，不泄露长度与前缀
+- 会话 Cookie 是 `HttpOnly; Secure; SameSite=Strict`，页面脚本读不到，XSS 也偷不走
+- **鉴权只保护身份**：登录后的编辑仍只写入你自己浏览器的 `mynav-custom-nav`，
+  线上 `nav.json` 只读。想让改动对所有人生效需要 KV/D1 + 写接口，本项目未实现
+- 爆破防护请在 Cloudflare 控制台给 `/api/auth` 配 Rate Limiting 规则
 
-```
-https://你的域名/?admin=0
-```
-
-也支持 `true/yes` 与 `false/no` 两种写法，参数名大小写不敏感（`?Admin=1` 同样生效）。
-
-### 这个开关的安全边界
-
-纯静态站没有服务端鉴权，**知道 `?admin=1` 的人都能给自己开编辑入口**。但他改的永远是
-他自己浏览器里的那份差异（`mynav-custom-nav`），线上 `nav.json` 不会被改动，其他访客也看不到。
-想让内容真正只由你控制，只有两条路：把参数当口令不外传，或者给站点加后端鉴权（本项目刻意不做）。
+更多细节见 [SECURITY.md](SECURITY.md)。
 
 ## 🎨 定制主题
 
