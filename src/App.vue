@@ -9,7 +9,7 @@
  *   - 页脚：版权与新增入口
  *   - 全局：设置面板、编辑弹窗、赛博特效
  */
-import { ref, computed, watch, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, onErrorCaptured, defineAsyncComponent } from 'vue'
 import DefaultLayout from './layouts/DefaultLayout.vue'
 import Clock from './components/Clock.vue'
 import SearchBar from './components/SearchBar.vue'
@@ -93,6 +93,35 @@ onMounted(async () => {
   await loadNavData()
   prefetchPanels()
 })
+
+/**
+ * 渲染错误兜底
+ *
+ * 纯静态站最怕的是「某个组件抛错 → 整棵组件树被卸载 → 白屏，用户不知道该做什么」。
+ * 这里把错误拦下来记到 renderError，页面主体继续可用，同时在顶部给出
+ * 「重新加载 / 清空本地数据并重载」两个自救入口。
+ * 返回 false 表示不再向上冒泡，避免 Vue 把根节点也卸掉。
+ */
+const renderError = ref('')
+onErrorCaptured((error, _instance, info) => {
+  console.error('[MyNav] 渲染异常:', info, error)
+  renderError.value = `${info}：${error?.message || error}`
+  return false
+})
+
+const reloadPage = () => window.location.reload()
+
+/** 清空本站写入 localStorage 的全部键后再重载（本地数据损坏时的最后手段） */
+const resetLocalAndReload = () => {
+  try {
+    localStorage.removeItem('mynav-settings')
+    localStorage.removeItem('mynav-custom-nav')
+    localStorage.removeItem('mynav-admin')
+  } catch (error) {
+    console.warn('清空本地数据失败（可能是隐私模式）:', error)
+  }
+  window.location.reload()
+}
 
 /**
  * 首屏渲染完成后、浏览器空闲时预取设置面板与编辑弹窗的 chunk。
@@ -243,6 +272,20 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+  <!-- 渲染降级提示：子组件抛错时不白屏，给用户两个自救入口 -->
+  <div v-if="renderError" class="mynav-crash" role="alert">
+    <p class="mynav-crash-title">页面出现渲染异常</p>
+    <p class="mynav-crash-desc">
+      先试着重新加载；如果反复出现，多半是本地缓存里的数据与当前版本不兼容，可以清空本地数据再重试。
+      清空只影响本机，不会改动线上的 nav.json。
+    </p>
+    <div class="mynav-crash-actions">
+      <button type="button" class="mynav-crash-btn" @click="reloadPage">重新加载</button>
+      <button type="button" class="mynav-crash-btn ghost" @click="resetLocalAndReload">清空本地数据并重载</button>
+    </div>
+    <p class="mynav-crash-detail">{{ renderError }}</p>
+  </div>
+
   <DefaultLayout>
     <!-- ========== 头部：标题、工具按钮、搜索、分类 ========== -->
     <template #header>

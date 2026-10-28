@@ -379,6 +379,76 @@ body {
   }
 }
 
+/* ============================================================
+ * 渲染异常降级提示（App.vue 的 onErrorCaptured 兜底 UI）
+ * 目标：任何子组件抛错时用户看到的是一条可操作的提示，而不是白屏。
+ * ============================================================ */
+.mynav-crash {
+  position: relative;
+  z-index: 60;
+  max-width: 960px;
+  margin: 16px auto 0;
+  padding: 18px 20px;
+  border: 1px solid rgba(244, 63, 94, 0.45);
+  border-radius: 14px;
+  background: rgba(30, 12, 20, 0.82);
+  backdrop-filter: blur(6px);
+  color: #fecdd3;
+}
+
+.mynav-crash-title {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.mynav-crash-desc {
+  margin: 0 0 14px;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: #fda4af;
+}
+
+.mynav-crash-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.mynav-crash-btn {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid rgba(244, 63, 94, 0.6);
+  border-radius: 10px;
+  background: rgba(244, 63, 94, 0.16);
+  color: #fff1f2;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.18s ease, transform 0.18s ease;
+}
+
+.mynav-crash-btn:hover,
+.mynav-crash-btn:focus-visible {
+  background: rgba(244, 63, 94, 0.3);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.mynav-crash-btn.ghost {
+  background: transparent;
+  border-color: rgba(253, 164, 175, 0.45);
+}
+
+.mynav-crash-detail {
+  margin: 12px 0 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  color: #fda4af;
+  opacity: 0.85;
+  word-break: break-word;
+}
+
 /* 打印样式 */
 @media print {
   * {
