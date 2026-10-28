@@ -22,10 +22,11 @@ import Header from './components/Header.vue'
 import { useNavData } from './composables/useNavData'
 import { useLocalStorage } from './composables/useLocalStorage'
 import { useCyberTheme } from './composables/useCyberTheme'
+import { parseBackup, mergeNavData } from './utils/backup'
 
 // ==================== 数据与设置（单例共享） ====================
-const { navData, loadNavData } = useNavData()
-const { settings, importData, setNavDataProvider } = useLocalStorage()
+const { navData, loadNavData, applyImportedData } = useNavData()
+const { settings, saveSettings, setNavDataProvider } = useLocalStorage()
 
 // 背景样式由主题组合式函数统一计算（背景类型 / 自定义图片 / 遮罩浓度）
 const { bgStyles, bgOverlayStyle } = useCyberTheme(settings)
@@ -63,6 +64,18 @@ const isSettingsOpen = ref(false) // 设置面板开关
 const editingItem = ref(null)     // 正在编辑的链接（null = 新增）
 const showEditModal = ref(false)  // 编辑弹窗开关
 const searchBarRef = ref(null)    // 搜索框组件引用（供快捷键聚焦）
+
+// 导入结果提示（成功 / 失败都就地反馈，不再用阻塞式 alert）
+const importNotice = ref(null)    // { type: 'ok' | 'error', lines: string[] }
+let noticeTimer = null
+
+function showNotice(type, lines) {
+  importNotice.value = { type, lines: lines.filter(Boolean) }
+  if (noticeTimer) clearTimeout(noticeTimer)
+  noticeTimer = setTimeout(() => {
+    importNotice.value = null
+  }, 8000)
+}
 
 // ==================== 数据加载与全局同步 ====================
 onMounted(async () => {
@@ -132,26 +145,47 @@ const openEdit = (item) => {
 }
 
 // ==================== 导入备份 ====================
-// 导入设置，并把备份文件里保存的链接合并进运行时导航数据
-// （已有 id 的项用备份版本覆盖，新 id 视为自定义新增）
+/**
+ * 导入流程：文件 → 解析校验 → 与当前数据合并 → 设置与链接分别落地 → 就地反馈结果
+ *
+ * 校验规则全部集中在 src/utils/backup.js（纯函数，有单测覆盖）：
+ *   - 文件大小、JSON 合法性、来源标记、版本号
+ *   - 链接必须带 name + 合法 http(s) url，非法条目跳过而不是整单失败
+ *   - 只导入 items / pinnedItems，分类与搜索源始终以 nav.json 为准
+ */
 const handleImport = async (event) => {
   const file = event.target?.files?.[0]
   if (!file) return
+
   try {
-    const data = await importData(file)
-    if (data?.navData?.items?.length) {
-      if (!navData.value) await loadNavData()
-      const merged = new Map((navData.value?.items || []).map((i) => [i.id, i]))
-      for (const item of data.navData.items) merged.set(item.id, item)
-      if (navData.value) {
-        navData.value.items = Array.from(merged.values())
-        if (data.navData.pinnedItems?.length) {
-          navData.value.pinnedItems = data.navData.pinnedItems
-        }
-      }
+    // 1) 解析 + 校验（超限、格式错误都在这里抛出可读错误）
+    const parsed = parseBackup(await file.text())
+
+    // 2) 与运行时数据合并：同 id 用备份覆盖，新 id 新增，其余保留
+    const merged = mergeNavData(
+      {
+        items: navData.value?.items || [],
+        pinnedItems: navData.value?.pinnedItems || []
+      },
+      parsed.navData
+    )
+
+    // 3) 设置写回本地存储；链接按「与 nav.json 的差异」持久化，刷新后仍在
+    if (parsed.settings && Object.keys(parsed.settings).length) {
+      saveSettings(parsed.settings)
     }
+    if (!navData.value) await loadNavData()
+    applyImportedData(merged)
+
+    // 4) 反馈：条数 + 所有跳过/告警原因（不静默吞掉问题）
+    const report = merged.report || {}
+    showNotice('ok', [
+      `导入完成：新增 ${report.added || 0} 条，更新 ${report.updated || 0} 条，置顶 ${report.pinnedAdded || 0} 条`,
+      ...(parsed.warnings || []).slice(0, 4),
+      ...(report.warnings || []).slice(0, 4)
+    ])
   } catch (error) {
-    alert('导入失败：' + (error?.message || error))
+    showNotice('error', [error?.message || '导入失败，请检查备份文件'])
   } finally {
     // 清空 input，使同一文件可被重复选择
     if (event.target) event.target.value = ''
@@ -172,7 +206,10 @@ const handleGlobalKeydown = (e) => {
 }
 
 onMounted(() => window.addEventListener('keydown', handleGlobalKeydown))
-onBeforeUnmount(() => window.removeEventListener('keydown', handleGlobalKeydown))
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleGlobalKeydown)
+  if (noticeTimer) clearTimeout(noticeTimer)
+})
 </script>
 
 <template>
@@ -216,6 +253,27 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleGlobalKeydown)
     <!-- ========== 背景层（固定在最底层，可开关/换图） ========== -->
     <div class="mynav-background" :style="bgStyles" aria-hidden="true"></div>
     <div class="mynav-background-overlay" :style="bgOverlayStyle" aria-hidden="true"></div>
+
+    <!-- ========== 导入结果提示：成功/失败都就地反馈，逐条列出告警 ========== -->
+    <div
+      v-if="importNotice"
+      class="mynav-notice"
+      :class="`mynav-notice--${importNotice.type}`"
+      role="status"
+      aria-live="polite"
+    >
+      <p v-for="(line, index) in importNotice.lines" :key="index" class="mynav-notice__line">
+        {{ line }}
+      </p>
+      <button
+        class="mynav-notice__close"
+        type="button"
+        aria-label="关闭提示"
+        @click="importNotice = null"
+      >
+        ×
+      </button>
+    </div>
 
     <!-- ========== 主体：置顶区 + 链接网格 ========== -->
     <div v-if="settings.showPinned && pinnedItems.length" class="mynav-pinned">

@@ -131,6 +131,8 @@ export function useLocalStorage() {
 
   /**
    * 导出备份：设置 + 当前导航数据，下载为 JSON 文件
+   * （导入不走这里：导入必须先经 src/utils/backup.js 的大小/结构校验，
+   *   见 App.vue 的 handleImport）
    */
   const exportData = () => {
     const payload = {
@@ -151,35 +153,11 @@ export function useLocalStorage() {
     URL.revokeObjectURL(url)
   }
 
-  /**
-   * 导入备份：读取 JSON 文件并合并设置，返回完整备份内容（含 navData）
-   * 导航数据的合并由调用方（App.vue）处理。
-   */
-  const importData = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        try {
-          const data = JSON.parse(event.target.result)
-          if (data && data.settings) {
-            settings.value = deepMerge(DEFAULT_SETTINGS, data.settings)
-          }
-          resolve(data)
-        } catch (error) {
-          reject(error)
-        }
-      }
-      reader.onerror = () => reject(new Error('读取文件失败'))
-      reader.readAsText(file)
-    })
-  }
-
   return {
     settings,
     saveSettings,
     resetSettings,
     exportData,
-    importData,
     setNavDataProvider
   }
 }
