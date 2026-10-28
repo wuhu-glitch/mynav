@@ -206,9 +206,19 @@ body {
   }
 }
 
-/* 赛博故障文字特效 */
+/* ============================================================
+   赛博故障文字特效（Glitch）
+   实现要点：
+   1) 用 clip-path: inset(上% 右% 下% 左%) 切横向细条，
+      百分比跟着元素高度走 —— 大标题 / 小标题都不会切到元素外的空白；
+   2) 两层伪元素分别是青蓝 / 洋红，且不再铺不透明底色，
+      避免整块盖住真实文字；
+   3) 动画节奏是「长时间静止 + 瞬间跳一下」，低饱和、不刺眼；
+   4) 尊重系统「减少动态效果」，该关就彻底关掉。
+   ============================================================ */
 .glitch-text {
   position: relative;
+  display: inline-block;
   color: var(--mynav-text-main);
 }
 
@@ -219,63 +229,72 @@ body {
   top: 0;
   left: 0;
   width: 100%;
-  height: 100%;
-  background: var(--mynav-bg-base);
+  pointer-events: none;
+  user-select: none;
+  /* 默认整块裁掉，只在关键帧里露出细切片 */
+  clip-path: inset(50% 0 50% 0);
+  /* text-shadow 是继承属性，发光开关打开时伪元素也会跟着发光 */
 }
 
+/* 青蓝切片：出现频率较高，幅度小 */
 .glitch-text::before {
-  left: 2px;
-  text-shadow: -2px 0 var(--mynav-glitch-offset);
-  clip: rect(24px, 550px, 90px, 0);
-  animation: glitch-anim-1 2.5s infinite linear alternate-reverse;
+  color: var(--mynav-cyan-400);
+  animation: glitch-slice-a 4.2s infinite steps(1, end);
 }
 
+/* 洋红切片：出现频率低，位移更大，制造"错位重影" */
 .glitch-text::after {
-  left: -2px;
-  text-shadow: -2px 0 var(--mynav-cyan-default);
-  clip: rect(85px, 550px, 140px, 0);
-  animation: glitch-anim-2 3s infinite linear alternate-reverse;
+  color: var(--mynav-glitch-offset);
+  animation: glitch-slice-b 5.6s infinite steps(1, end);
 }
 
-@keyframes glitch-anim-1 {
-  0% {
-    clip: rect(20px, 9999px, 10px, 0);
+@keyframes glitch-slice-a {
+  0%, 82%, 100% {
+    clip-path: inset(50% 0 50% 0);
+    transform: translate(0, 0);
   }
-  20% {
-    clip: rect(80px, 9999px, 90px, 0);
+  83% {
+    clip-path: inset(12% 0 78% 0);
+    transform: translate(-2px, 0);
   }
-  40% {
-    clip: rect(10px, 9999px, 50px, 0);
+  85% {
+    clip-path: inset(62% 0 28% 0);
+    transform: translate(2px, 0);
   }
-  60% {
-    clip: rect(70px, 9999px, 30px, 0);
+  87% {
+    clip-path: inset(34% 0 54% 0);
+    transform: translate(-1px, 0);
   }
-  80% {
-    clip: rect(30px, 9999px, 60px, 0);
-  }
-  100% {
-    clip: rect(50px, 9999px, 20px, 0);
+  89% {
+    clip-path: inset(50% 0 50% 0);
+    transform: translate(0, 0);
   }
 }
 
-@keyframes glitch-anim-2 {
-  0% {
-    clip: rect(60px, 9999px, 80px, 0);
+@keyframes glitch-slice-b {
+  0%, 88%, 100% {
+    clip-path: inset(50% 0 50% 0);
+    transform: translate(0, 0);
   }
-  20% {
-    clip: rect(10px, 9999px, 30px, 0);
+  90% {
+    clip-path: inset(70% 0 18% 0);
+    transform: translate(2px, 0);
   }
-  40% {
-    clip: rect(40px, 9999px, 20px, 0);
+  92% {
+    clip-path: inset(24% 0 66% 0);
+    transform: translate(-3px, 0);
   }
-  60% {
-    clip: rect(90px, 9999px, 40px, 0);
+  94% {
+    clip-path: inset(50% 0 50% 0);
+    transform: translate(0, 0);
   }
-  80% {
-    clip: rect(20px, 9999px, 70px, 0);
-  }
-  100% {
-    clip: rect(50px, 9999px, 10px, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glitch-text::before,
+  .glitch-text::after {
+    animation: none;
+    clip-path: inset(50% 0 50% 0);
   }
 }
 
