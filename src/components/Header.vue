@@ -123,20 +123,37 @@ const titleClass = computed(() => [
   gap: 0.25rem;
 }
 
+/* 标题 / 副标题：字号统一读 main.css 里的 CSS 变量，
+   响应式断点放在本组件的 scoped 样式里 —— 保证不会被全局同名规则盖掉 */
 .mynav-title {
-  font-size: 2.25rem;
+  font-size: var(--mynav-title-size, 2.25rem);
   font-weight: 700;
   color: #f0f8ff;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+  line-height: 1.25;
   margin: 0;
+  /* 长标题不换行撑破布局：优先整体缩放，实在放不下才折行 */
+  overflow-wrap: anywhere;
 }
 
 .mynav-subtitle {
-  font-size: 0.9rem;
+  font-size: var(--mynav-subtitle-size, 0.9rem);
   color: #94a3b8;
   letter-spacing: 0.05em;
+  line-height: 1.5;
   margin: 0;
+}
+
+@media (max-width: 640px) {
+  .mynav-title {
+    font-size: var(--mynav-title-size-sm, 1.75rem);
+    letter-spacing: 0.06em;
+  }
+
+  .mynav-subtitle {
+    font-size: var(--mynav-subtitle-size-sm, 0.75rem);
+  }
 }
 
 .mynav-header-actions {
