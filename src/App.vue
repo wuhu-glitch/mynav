@@ -9,14 +9,16 @@
  *   - 页脚：版权与新增入口
  *   - 全局：设置面板、编辑弹窗、赛博特效
  */
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue'
 import DefaultLayout from './layouts/DefaultLayout.vue'
 import Clock from './components/Clock.vue'
 import SearchBar from './components/SearchBar.vue'
 import CategoryGroup from './components/CategoryGroup.vue'
 import LinkCard from './components/LinkCard.vue'
-import SettingsPanel from './components/SettingsPanel.vue'
-import EditModal from './components/EditModal.vue'
+// 设置面板与编辑弹窗只在用户点开时才需要，改成异步组件后它们会单独切成
+// 一个 chunk：首屏 JS 明显变小，打开面板时才按需下载（浏览器会缓存）。
+const SettingsPanel = defineAsyncComponent(() => import('./components/SettingsPanel.vue'))
+const EditModal = defineAsyncComponent(() => import('./components/EditModal.vue'))
 import CyberEffect from './components/CyberEffect.vue'
 import Header from './components/Header.vue'
 import { useNavData } from './composables/useNavData'
@@ -80,7 +82,24 @@ function showNotice(type, lines) {
 // ==================== 数据加载与全局同步 ====================
 onMounted(async () => {
   await loadNavData()
+  prefetchPanels()
 })
+
+/**
+ * 首屏渲染完成后、浏览器空闲时预取设置面板与编辑弹窗的 chunk。
+ * 这样首屏不计入这两块体积，而用户点开时又几乎感觉不到加载。
+ */
+function prefetchPanels() {
+  const load = () => {
+    import('./components/SettingsPanel.vue')
+    import('./components/EditModal.vue')
+  }
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(load, { timeout: 3000 })
+  } else {
+    setTimeout(load, 1500)
+  }
+}
 
 // 把主题类挂到 <body> 上：main.css 里 dark/light 两套 CSS 变量靠它生效
 watch(
