@@ -32,7 +32,15 @@ import {
   AUTH_FAIL_LIMIT,
   isSafeHttpUrl
 } from '../functions/_lib/navstore.js'
-import { createPasswordHash, verifyPassword, isPasswordHashFormat, MIN_PASSWORD_LENGTH } from '../functions/_lib/password.js'
+import {
+  createPasswordHash,
+  verifyPassword,
+  isPasswordHashFormat,
+  hashPassword,
+  randomSalt,
+  PASSWORD_ITERATIONS,
+  MIN_PASSWORD_LENGTH
+} from '../functions/_lib/password.js'
 
 /** 内存版 KV：接口形状与 Workers KV 对齐（get/put/delete） */
 function createMemoryKV() {
@@ -240,7 +248,12 @@ assert.equal(isSafeHttpUrl('data:text/html,x'), false)
 
   const stored = await createPasswordHash('correct horse battery staple')
   assert.equal(isPasswordHashFormat(stored), true)
-  assert.ok(stored.startsWith('scrypt1$'))
+  // 格式带迭代次数：scrypt2$<iters>$<salt>$<hash>
+  assert.ok(stored.startsWith('scrypt2$'))
+  assert.equal(Number(stored.split('$')[1]), PASSWORD_ITERATIONS)
+  // Workers 的 PBKDF2 上限是 10 万次，超了要当场报错而不是等上线 500
+  assert.equal(PASSWORD_ITERATIONS <= 100000, true)
+  await assert.rejects(() => hashPassword('x', randomSalt(), 120000), RangeError)
 
   assert.equal(await verifyPassword('correct horse battery staple', stored), true)
   assert.equal(await verifyPassword('wrong password', stored), false)

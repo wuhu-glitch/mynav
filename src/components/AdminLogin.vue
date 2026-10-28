@@ -55,7 +55,7 @@ async function submit() {
     emit('success')
     return
   }
-  errorText.value = describeLoginError(result.reason)
+  errorText.value = describeLoginError(result.reason, result.message)
   // 失败后保留输入内容，方便用户发现打错的地方
   await nextTick()
   inputRef.value?.select?.()

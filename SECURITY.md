@@ -91,8 +91,10 @@ media-src 'none'; child-src 'none'; upgrade-insecure-requests
 
 实现要点：
 
-- 口令**不以明文存在任何地方**：KV 里是 `scrypt1$<salt>$<hash>`（PBKDF2-SHA256，12 万次迭代，
-  16 字节随机盐）；仓库、构建产物、前端代码都不含口令
+- 口令**不以明文存在任何地方**：KV 里是 `scrypt2$<iterations>$<salt>$<hash>`（PBKDF2-SHA256，
+  10 万次迭代，16 字节随机盐）；仓库、构建产物、前端代码都不含口令。
+  迭代次数写进串里：Workers 的 WebCrypto 硬限制 `PBKDF2 ≤ 100000`，超过会抛
+  `NotSupportedError`，所以默认值取上限，改默认值也不会让旧哈希失效
 - 校验走常量时间比较；口令错误路径固定延迟 300ms，抬高在线猜解成本
 - 失败按 IP 记在 KV（IP 先做 SHA-256 截断，不存明文地址）：连续 5 次锁 60 秒
 - 会话令牌 = `v1.<payload>.<HMAC-SHA256>`，密钥是 `MYNAV_SESSION_SECRET`

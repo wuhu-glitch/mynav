@@ -4,16 +4,20 @@
  * 用法：
  *   npm run hash-password -- "你的口令"
  * 输出示例（一整个 JSON）：
- *   {"hash":"scrypt1$kZ3...$9fA...","updatedAt":"2026-10-28T11:20:00.000Z"}
+ *   {"hash":"scrypt2$100000$kZ3...$9fA...","updatedAt":"2026-10-28T11:20:00.000Z"}
  *
  * 为什么输出 JSON 而不是裸哈希（踩过的坑）：
  *   服务端是用 readJson(kv, 'auth:password') 读的，拿到的是对象并取 `.hash` 字段。
- *   如果只把 "scrypt1$..." 裸串写进去，readJson 解析失败返回 null，
+ *   如果只把 "scrypt2$..." 裸串写进去，readJson 解析失败返回 null，
  *   于是登录接口永远报「未初始化管理员口令」。
+ *
+ * 为什么迭代是 100000 而不是更高（又一个踩过的坑）：
+ *   Workers 的 WebCrypto 对 PBKDF2 有硬限制，超过 100000 次直接抛
+ *   `NotSupportedError`，登录变 500。本地 Node 不会有这个限制，所以别在本地“调高更安全”。
  *
  * 拿到输出后二选一写入：
  *   1) 命令行（把下面整行 JSON 作为值）：
- *      npx wrangler kv key put "auth:password" "{\"hash\":\"scrypt1$...\"}" \
+ *      npx wrangler kv key put "auth:password" "{\"hash\":\"scrypt2$...\"}" \
  *        --namespace-id=<你的 KV namespace id> --remote
  *   2) 控制台：KV → mynav-kv → 添加条目，键 auth:password，值粘整段 JSON
  *

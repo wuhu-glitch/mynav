@@ -104,7 +104,13 @@ export async function loginAdmin(password, fetcher = globalThis.fetch) {
       data = null
     }
     if (response.ok && data?.ok === true) return { ok: true }
-    return { ok: false, reason: data?.error || `http_${response.status}` }
+    return {
+      ok: false,
+      // 服务端会带回稳定的 error 码；HTTP 状态码只在没拿到 JSON 时兜底
+      reason: data?.error || `http_${response.status}`,
+      // message 是给人看的细节（例如「服务端异常（RangeError: ...）」），有就优先展示
+      message: typeof data?.message === 'string' ? data.message : ''
+    }
   } catch {
     return { ok: false, reason: 'network' }
   }
@@ -128,8 +134,14 @@ export async function logoutAdmin(fetcher = globalThis.fetch) {
   }
 }
 
-/** 登录失败原因 → 给用户看的中文文案 */
-export function describeLoginError(reason) {
+/**
+ * 登录失败原因 → 给用户看的中文文案
+ * @param {string} reason 服务端 error 码（或 network / http_xxx）
+ * @param {string} [message] 服务端附带的细节文案，优先级最高
+ */
+export function describeLoginError(reason, message = '') {
+  // 服务端明确给了细节（如异常类型）就直接用，别用「返回异常（500）」盖掉线索
+  if (typeof message === 'string' && message.trim()) return message.trim()
   switch (reason) {
     case 'invalid_credentials':
       return '口令不正确'

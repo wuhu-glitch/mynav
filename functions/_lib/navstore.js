@@ -2,7 +2,7 @@
  * 公共导航的 KV 存储层
  *
  * KV 键约定（全部集中在 KEYS 里，避免散落各处写错）：
- *   auth:password        管理员口令哈希（scrypt1$salt$hash），由初始化脚本写入
+ *   auth:password        管理员口令哈希（scrypt2$iterations$salt$hash），由初始化脚本写入
  *   auth:fail:<ip>       某 IP 的登录失败计数（用于简单熔断）
  *   nav:current          当前生效的公共导航 { nav, version, updatedAt }
  *   nav:index            版本索引 { versions: [{ version, createdAt, note, itemCount }] }

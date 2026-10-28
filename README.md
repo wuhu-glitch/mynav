@@ -377,17 +377,21 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
 
 ```bash
 npm run hash-password -- "你的口令"
-# 输出一整个 JSON：{"hash":"scrypt1$<salt>$<hash>","updatedAt":"..."}
+# 输出一整个 JSON：{"hash":"scrypt2$100000$<salt>$<hash>","updatedAt":"..."}
 ```
 
+哈希格式是 `scrypt2$<iterations>$<salt>$<hash>`：迭代次数写在串里，默认 100000。
+**不要手动把它改成 12 万次**——Workers 的 WebCrypto 硬限制 PBKDF2 迭代 ≤ 100000，
+超过会抛 `NotSupportedError`，登录接口直接 500。
+
 **注意：值必须存成 JSON，不是裸哈希串。** 服务端用 `readJson()` 读取 `auth:password`，
-再取对象里的 `.hash`；只写 `scrypt1$...` 裸串会解析失败，登录接口会一直报「未初始化管理员口令」。
+再取对象里的 `.hash`；只写 `scrypt2$...` 裸串会解析失败，登录接口会一直报「未初始化管理员口令」。
 
 写入方式二选一：
 
 ```bash
 # 方式一：命令行（把整段 JSON 作为值）
-npx wrangler kv key put "auth:password" "{\"hash\":\"scrypt1$...\"}" \
+npx wrangler kv key put "auth:password" "{\"hash\":\"scrypt2$...\"}" \
   --namespace-id=<namespace id> --remote
 ```
 
