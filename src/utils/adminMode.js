@@ -1,80 +1,155 @@
 /**
- * adminMode —— 只读模式 / 管理员模式的判定
+ * adminMode —— 管理员身份的**服务端**判定（前端侧调用封装）
  *
- * 为什么需要它：
- *   这是纯静态站，任何人打开都能看到「编辑链接」的入口。虽然改动只落在
- *   访客自己的 localStorage、不会影响线上数据，但对外看起来「谁都能改」，
- *   体验不好。默认把访客当只读用户，只有站点主人在 URL 上带 `?admin=1`
- *   访问一次后，才会显示编辑入口。
+ * 为什么从 localStorage 换成服务端：
+ *   以前的 `?admin=1` 只是本地开关 —— 谁在地址栏加个参数都能给自己打开编辑入口，
+ *   虽然改动只落在访客自己的 localStorage，但"看起来谁都能改站点"本身就是误解。
+ *   现在身份由 Cloudflare Pages Functions 判定：
+ *     POST /api/auth     校验口令 → 下发 HttpOnly 会话 Cookie（前端读不到）
+ *     GET  /api/session  询问"我这个 Cookie 是不是管理员"
+ *     POST /api/logout   清掉会话
  *
- * 规则：
- *   - `?admin=1`（也接受 true / yes）：开启管理员，并记住到 localStorage
- *   - `?admin=0`（也接受 false / no）：关闭管理员，并清掉记住的标记
- *   - 不带参数：沿用上次记住的状态；默认 false（只读）
+ * 前端只保存"有没有管理员身份"这个**结果**，不保存任何凭据；
+ * 刷新页面靠 Cookie 自动重新判定，用户不需要重新登录（12 小时内）。
  *
- * 两个导出：
- *   resolveAdmin()   纯函数，不碰 window / localStorage，方便单测
- *   bootstrapAdmin() 浏览器里用，负责读写 localStorage 并清理地址栏参数
+ * 纯函数（wantsAdminLogin / stripAdminParam）单独导出，方便单测不依赖网络。
  */
 
-export const ADMIN_STORAGE_KEY = 'mynav-admin'
 export const ADMIN_QUERY_KEY = 'admin'
+export const SESSION_ENDPOINT = '/api/session'
+export const AUTH_ENDPOINT = '/api/auth'
+export const LOGOUT_ENDPOINT = '/api/logout'
+
+/** 只读模式说明文案（多处复用，避免写岔） */
+export const READONLY_TIP = '本站为只读导航：可直接点开链接；管理员登录后才显示编辑入口'
+
+/** 服务端未配置鉴权时按钮上的提示 */
+export const LOGIN_DISABLED_TIP = '本站未启用服务端鉴权，编辑入口已关闭'
 
 /**
- * 判定是否为管理员。
- * @param {string} search 查询串，例如 '?admin=1' 或 window.location.search
- * @param {boolean} stored 之前记住的管理员状态
- * @returns {{ admin: boolean, explicit: boolean }} explicit=true 表示 URL 里明确写了开关
+ * 地址栏是否在请求"打开管理员登录框"。
+ * 只认 `?admin=1` / `?admin=true` / `?admin=yes`（大小写不敏感），
+ * 且**不再**因为参数存在就把人当管理员 —— 它只是一次"请给我登录框"的示意。
+ * @param {string} search 例如 window.location.search
  */
-export function resolveAdmin(search, stored = false) {
+export function wantsAdminLogin(search) {
   const params = new URLSearchParams(search || '')
-
-  // 参数名大小写不敏感：?Admin=1、?ADMIN=1 也认（常见手误）
-  let raw = ''
   for (const [key, value] of params.entries()) {
-    if (key.toLowerCase() === ADMIN_QUERY_KEY) {
-      raw = value.trim().toLowerCase()
-      break
-    }
+    if (key.toLowerCase() !== ADMIN_QUERY_KEY) continue
+    const normalized = value.trim().toLowerCase()
+    return normalized === '1' || normalized === 'true' || normalized === 'yes'
   }
-
-  if (raw === '1' || raw === 'true' || raw === 'yes') {
-    return { admin: true, explicit: true }
-  }
-  if (raw === '0' || raw === 'false' || raw === 'no') {
-    return { admin: false, explicit: true }
-  }
-  return { admin: stored === true, explicit: false }
+  return false
 }
 
 /**
- * 浏览器入口：读取地址栏与 localStorage，必要时写回并清掉 URL 参数。
- * 清理参数是为了「分享出去的链接不带管理员开关」。
- * @returns {boolean} 当前是否管理员
+ * 去掉地址栏里的 admin 参数，保留其余参数与 hash。
+ * 登录框打开后立刻清理，避免「分享出去的链接带着管理员参数」。
+ * @param {string} href 完整地址
+ * @returns {string} 可直接交给 history.replaceState 的相对地址
  */
-export function bootstrapAdmin() {
-  let stored = false
-  try {
-    stored = window.localStorage.getItem(ADMIN_STORAGE_KEY) === '1'
-  } catch {
-    // 隐私模式禁用 localStorage 时按只读处理
+export function stripAdminParam(href) {
+  const url = new URL(href)
+  for (const key of Array.from(url.searchParams.keys())) {
+    if (key.toLowerCase() === ADMIN_QUERY_KEY) url.searchParams.delete(key)
   }
-
-  const { admin, explicit } = resolveAdmin(window.location.search, stored)
-
-  if (explicit) {
-    try {
-      if (admin) window.localStorage.setItem(ADMIN_STORAGE_KEY, '1')
-      else window.localStorage.removeItem(ADMIN_STORAGE_KEY)
-    } catch {}
-
-    const url = new URL(window.location.href)
-    url.searchParams.delete(ADMIN_QUERY_KEY)
-    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
-  }
-
-  return admin
+  return `${url.pathname}${url.search}${url.hash}`
 }
 
-/** 只读模式下的说明文案（头部按钮、设置面板都用它，避免两处写岔） */
-export const READONLY_TIP = '本站为只读导航：可以直接点开链接，内容不可修改'
+/**
+ * 询问服务端当前会话身份。
+ * 网络失败 / 端点不存在（纯静态部署、没启用 Functions）时按只读处理，
+ * 并标记 reachable=false，前端据此提示"鉴权不可用"而不是反复弹登录框。
+ * @param {typeof fetch} fetcher
+ */
+export async function fetchAdminSession(fetcher = globalThis.fetch) {
+  try {
+    const response = await fetcher(SESSION_ENDPOINT, {
+      method: 'GET',
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: { Accept: 'application/json' }
+    })
+    if (!response.ok) return { admin: false, configured: false, reachable: false }
+    const data = await response.json()
+    return {
+      admin: data?.admin === true,
+      configured: data?.configured === true,
+      reachable: true
+    }
+  } catch {
+    return { admin: false, configured: false, reachable: false }
+  }
+}
+
+/**
+ * 提交口令换会话。
+ * @param {string} password
+ * @param {typeof fetch} fetcher
+ * @returns {Promise<{ ok: boolean, reason?: string }>}
+ */
+export async function loginAdmin(password, fetcher = globalThis.fetch) {
+  try {
+    const response = await fetcher(AUTH_ENDPOINT, {
+      method: 'POST',
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ password: String(password ?? '') })
+    })
+    let data = null
+    try {
+      data = await response.json()
+    } catch {
+      data = null
+    }
+    if (response.ok && data?.ok === true) return { ok: true }
+    return { ok: false, reason: data?.error || `http_${response.status}` }
+  } catch {
+    return { ok: false, reason: 'network' }
+  }
+}
+
+/**
+ * 退出登录（幂等，没登录也能调用）。
+ * @param {typeof fetch} fetcher
+ */
+export async function logoutAdmin(fetcher = globalThis.fetch) {
+  try {
+    await fetcher(LOGOUT_ENDPOINT, {
+      method: 'POST',
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: { Accept: 'application/json' }
+    })
+    return { ok: true }
+  } catch {
+    return { ok: false, reason: 'network' }
+  }
+}
+
+/** 登录失败原因 → 给用户看的中文文案 */
+export function describeLoginError(reason) {
+  switch (reason) {
+    case 'invalid_credentials':
+      return '口令不正确'
+    case 'not_configured':
+      return '服务端未配置管理员口令，请联系站点所有者'
+    case 'bad_request':
+    case 'bad_content_type':
+      return '请求格式错误，请刷新后重试'
+    case 'network':
+      return '无法连接鉴权服务（离线或未启用 Pages Functions）'
+    // 静态托管（没有 Functions）时常见：SPA 回退把 /api/auth 也返回成 index.html
+    case 'http_200':
+      return '鉴权接口未启用（返回的不是接口数据），请确认部署时启用了 Pages Functions'
+    case 'http_404':
+    case 'http_405':
+      return '鉴权接口不可用，请确认部署时已启用 Functions'
+    default:
+      if (typeof reason === 'string' && reason.startsWith('http_')) {
+        return `鉴权接口返回异常（${reason.slice(5)}）`
+      }
+      return reason ? `登录失败：${reason}` : '登录失败，请稍后重试'
+  }
+}

@@ -25,7 +25,16 @@ import { useNavData } from './composables/useNavData'
 import { useLocalStorage } from './composables/useLocalStorage'
 import { useCyberTheme } from './composables/useCyberTheme'
 import { parseBackup, mergeNavData } from './utils/backup'
-import { bootstrapAdmin } from './utils/adminMode'
+import {
+  fetchAdminSession,
+  logoutAdmin,
+  wantsAdminLogin,
+  stripAdminParam,
+  READONLY_TIP
+} from './utils/adminMode'
+
+// 管理员登录框同样按需加载（只有点「解锁」或带 ?admin=1 访问时才需要）
+const AdminLogin = defineAsyncComponent(() => import('./components/AdminLogin.vue'))
 
 // ==================== 数据与设置（单例共享） ====================
 const { navData, loadNavData, applyImportedData } = useNavData()
@@ -64,10 +73,14 @@ const filterCtrl = ref('')        // 搜索关键词（同时驱动卡片实时�
 const categoryTab = ref('全部')   // 当前分类标签
 /**
  * 是否管理员（默认只读）。
- * 访客可以正常点开所有链接，但看不到编辑入口；
- * 站点主人访问 `?admin=1` 一次后会被记住，之后正常打开也有编辑入口。
+ *
+ * 由**服务端**判定：GET /api/session 检查 HttpOnly 会话 Cookie 的 HMAC 签名。
+ * 地址栏带 `?admin=1` 只是"请打开登录框"的示意，不再是本地开关；
+ * 前端不存任何凭据，刷新后靠 Cookie 自动恢复身份。
  */
 const isAdmin = ref(false)
+const showAdminLogin = ref(false)  // 管理员登录框
+const adminConfigured = ref(true)  // 服务端是否配置了口令（未配置时按钮给出明确提示）
 const isEditMode = ref(false)     // 是否处于编辑模式
 const isSettingsOpen = ref(false) // 设置面板开关
 const editingItem = ref(null)     // 正在编辑的链接（null = 新增）
@@ -88,11 +101,47 @@ function showNotice(type, lines) {
 
 // ==================== 数据加载与全局同步 ====================
 onMounted(async () => {
-  // 先判定只读/管理员：?admin=1 开启后会把标记记在 localStorage，并清理地址栏
-  isAdmin.value = bootstrapAdmin()
+  // 1) 地址栏 `?admin=1` 只用于"打开登录框"，顺手清掉参数避免分享链接带开关
+  if (wantsAdminLogin(window.location.search)) {
+    showAdminLogin.value = true
+    try {
+      window.history.replaceState({}, '', stripAdminParam(window.location.href))
+    } catch {
+      // history 不可用（极老浏览器/特殊嵌入）时忽略，不影响功能
+    }
+  }
+
+  // 2) 问服务端"我这个 Cookie 是不是管理员"（网络失败按只读处理）
+  const session = await fetchAdminSession()
+  isAdmin.value = session.admin
+  adminConfigured.value = session.configured
+
   await loadNavData()
   prefetchPanels()
 })
+
+/** 点击「解锁」按钮：服务端未配置口令时只给提示，不弹无用的登录框 */
+function handleAdminLogin() {
+  if (!adminConfigured.value) {
+    showNotice('error', ['本站未启用服务端鉴权：请在 Pages 环境变量里配置管理员口令'])
+    return
+  }
+  showAdminLogin.value = true
+}
+
+/** 登录成功：身份由服务端 Cookie 承载，这里只更新 UI 状态 */
+function handleAdminSuccess() {
+  isAdmin.value = true
+  showNotice('ok', ['已进入管理员模式，可编辑链接；12 小时内免重复登录'])
+}
+
+/** 退出登录：先让服务端清 Cookie，再收起编辑状态（避免 UI 与服务端不一致） */
+async function handleAdminLogout() {
+  isEditMode.value = false
+  await logoutAdmin()
+  isAdmin.value = false
+  showNotice('ok', ['已退出管理员模式'])
+}
 
 /**
  * 渲染错误兜底
@@ -299,6 +348,8 @@ onBeforeUnmount(() => {
         @toggle-edit="isEditMode = isAdmin && !isEditMode"
         @toggle-settings="isSettingsOpen = !isSettingsOpen"
         @add="openEdit(null)"
+        @admin-login="handleAdminLogin"
+        @admin-logout="handleAdminLogout"
       >
         <template #actions>
           <Clock v-if="settings.showClock" />
@@ -397,6 +448,7 @@ onBeforeUnmount(() => {
         <button v-if="isEditMode" class="mynav-footer-edit" @click="openEdit(null)">
           ＋ 新增链接
         </button>
+        <span v-else class="mynav-footer-hint">{{ READONLY_TIP }}</span>
       </footer>
     </template>
 
@@ -405,6 +457,9 @@ onBeforeUnmount(() => {
 
     <!-- ========== 编辑弹窗 ========== -->
     <EditModal v-model:show="showEditModal" :item="editingItem" />
+
+    <!-- ========== 管理员登录（服务端校验口令，成功后下发 HttpOnly 会话） ========== -->
+    <AdminLogin v-model:show="showAdminLogin" @success="handleAdminSuccess" />
   </DefaultLayout>
 </template>
 
@@ -463,6 +518,10 @@ onBeforeUnmount(() => {
          bg-cyan-600 hover:bg-cyan-500
          text-white text-sm font-medium
          transition-all duration-200 active:scale-95;
+}
+
+.mynav-footer-hint {
+  @apply text-xs text-gray-600;
 }
 .mynav-background {
   position: fixed;
