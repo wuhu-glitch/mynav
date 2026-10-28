@@ -1,0 +1,282 @@
+{
+  "title": "MyNav 个人导航站",
+  "subtitle": "赛博朋克风 个人聚合导航",
+  "themeColor": "cyan",
+  "categories": [
+    {
+      "title": "开发工具",
+      "filter": ["dev", "tools"]
+    },
+    {
+      "title": "创意设计",
+      "filter": ["design", "creative"]
+    },
+    {
+      "title": "学习资源",
+      "filter": ["learn", "edu"]
+    },
+    {
+      "title": "娱乐休闲",
+      "filter": ["fun", "media"]
+    },
+    {
+      "title": "常用网站",
+      "filter": ["common", "daily"]
+    }
+  ],
+  "searchEngines": [
+    {
+      "id": "baidu",
+      "name": "百度",
+      "url": "https://www.baidu.com/s?wd={query}"
+    },
+    {
+      "id": "bing",
+      "name": "Bing",
+      "url": "https://www.bing.com/search?q={query}"
+    },
+    {
+      "id": "github",
+      "name": "GitHub",
+      "url": "https://github.com/search?q={query}"
+    },
+    {
+      "id": "zhihu",
+      "name": "知乎",
+      "url": "https://www.zhihu.com/search?type=content&q={query}"
+    },
+    {
+      "id": "bilibili",
+      "name": "B站",
+      "url": "https://search.bilibili.com/all?keyword={query}"
+    }
+  ],
+  "pinnedItems": [
+    {
+      "id": "p1",
+      "name": "GitHub全局搜索",
+      "url": "https://github.com/search?q={query}",
+      "icon": "mdi:github",
+      "tags": ["dev", "tools"],
+      "category": "开发工具"
+    },
+    {
+      "id": "p2",
+      "name": "Bing全球搜索",
+      "url": "https://www.bing.com/search?q={query}",
+      "icon": "mdi:microsoft-bing",
+      "tags": ["common", "daily"],
+      "category": "常用网站"
+    },
+    {
+      "id": "p3",
+      "name": "Stack Overflow",
+      "url": "https://stackoverflow.com",
+      "icon": "mdi:stackoverflow",
+      "tags": ["dev", "tools"],
+      "category": "开发工具"
+    },
+    {
+      "id": "p4",
+      "name": "YouTube",
+      "url": "https://www.youtube.com",
+      "icon": "mdi:youtube",
+      "tags": ["fun", "media"],
+      "category": "娱乐休闲"
+    }
+  ],
+  "items": [
+    {
+      "id": "vitejs",
+      "name": "Vite",
+      "url": "https://vitejs.dev",
+      "icon": "mdi:vitejs-svelte",
+      "tags": ["dev", "tools"],
+      "desc": "下一代前端工具链"
+    },
+    {
+      "id": "tailwindcss",
+      "name": "Tailwind CSS",
+      "url": "https://tailwindcss.com",
+      "icon": "mdi:css",
+      "tags": ["dev", "tools"],
+      "desc": "实用优先的 CSS 框架"
+    },
+    {
+      "id": "vuejs",
+      "name": "Vue.js",
+      "url": "https://vuejs.org",
+      "icon": "mdi:vuejs",
+      "tags": ["dev", "tools"],
+      "desc": "渐进式 JavaScript 框架"
+    },
+    {
+      "id": "eslint",
+      "name": "ESLint",
+      "url": "https://eslint.org",
+      "icon": "mdi:microsoft-eslint",
+      "tags": ["dev", "tools"],
+      "desc": "JavaScript/TypeScript 代码检查工具"
+    },
+    {
+      "id": "mdn-browser",
+      "name": "MDN Web Docs",
+      "url": "https://developer.mozilla.org",
+      "icon": "mdi:firefox",
+      "tags": ["dev", "tools"],
+      "desc": "Mozilla 提供的 Web 开发文档"
+    },
+    {
+      "id": "third-party-design",
+      "name": "Dribbble",
+      "url": "https://dribbble.com",
+      "icon": "mdi:dribbble",
+      "tags": ["design", "creative"],
+      "desc": "设计师灵感社区"
+    },
+    {
+      "id": "figma",
+      "name": "Figma",
+      "url": "https://www.figma.com",
+      "icon": "mdi:figma",
+      "tags": ["design", "creative"],
+      "desc": "在线协作设计工具"
+    },
+    {
+      "id": "ui-ux-design",
+      "name": "UI/UX 设计指南",
+      "url": "https://www.smashingmagazine.com/design-guides/",
+      "icon": "mdi:design",
+      "tags": ["design", "creative"],
+      "desc": "优秀的 UI/UX 设计资源"
+    },
+    {
+      "id": "leetcode-algorithms",
+      "name": "LeetCode",
+      "url": "https://leetcode.com",
+      "icon": "mdi:chalkboard-variant",
+      "tags": ["learn", "edu"],
+      "desc": "算法与数据结构练习平台"
+    },
+    {
+      "id": "free-courses",
+      "name": "freeCodeCamp",
+      "url": "https://www.freecodecamp.org",
+      "icon": "mdi:c-code",
+      "tags": ["learn", "edu"],
+      "desc": "免费编程课程平台"
+    },
+    {
+      "id": "developer-tutorials",
+      "name": "程序员教程",
+      "url": "https://coding-beginner.github.io",
+      "icon": "mdi:code-braces",
+      "tags": ["learn", "edu"],
+      "desc": "零基础编程入门"
+    },
+    {
+      "id": "bilibili-media",
+      "name": "Bilibili",
+      "url": "https://www.bilibili.com",
+      "icon": "mdi:bilibili",
+      "tags": ["fun", "media"],
+      "desc": "弹幕视频网站"
+    },
+    {
+      "id": "wallpapers",
+      "name": "Wallhaven",
+      "url": "https://wallhaven.cc",
+      "icon": "mdi:image-filter-hdr",
+      "tags": ["fun", "media"],
+      "desc": "桌面壁纸网站"
+    },
+    {
+      "id": "muse-music",
+      "name": "Muse",
+      "url": "https://muse.ac",
+      "icon": "mdi:library-music",
+      "tags": ["fun", "media"],
+      "desc": "谱曲与音乐创作平台"
+    },
+    {
+      "id": "gmail-email",
+      "name": "Gmail",
+      "url": "https://mail.google.com",
+      "icon": "mdi:gmail",
+      "tags": ["common", "daily"],
+      "desc": "谷歌邮箱服务"
+    },
+    {
+      "id": "dropbox-cloud",
+      "name": "Dropbox",
+      "url": "https://www.dropbox.com",
+      "icon": "mdi:dropbox",
+      "tags": ["common", "daily"],
+      "desc": "云存储服务"
+    },
+    {
+      "id": "notion-productivity",
+      "name": "Notion",
+      "url": "https://www.notion.so",
+      "icon": "mdi:notion",
+      "tags": ["common", "daily"],
+      "desc": "生产力协作工具"
+    },
+    {
+      "id": "timrem-pomodoro",
+      "name": "TimeRem",
+      "url": "https://trem.to",
+      "icon": "mdi:timer",
+      "tags": ["common", "daily"],
+      "desc": "番茄钟计时工具"
+    },
+    {
+      "id": "cambridge-cambridge",
+      "name": "Cambridge Dictionary",
+      "url": "https://dictionary.cambridge.org",
+      "icon": "mdi:translate",
+      "tags": ["learn", "edu"],
+      "desc": "权威英语词典"
+    },
+    {
+      "id": "can-can",
+      "name": "Canva",
+      "url": "https://www.canva.com",
+      "icon": "mdi:can-can",
+      "tags": ["design", "creative"],
+      "desc": "在线图形设计工具"
+    },
+    {
+      "id": "unsplash-gallery",
+      "name": "Unsplash",
+      "url": "https://unsplash.com",
+      "icon": "mdi:image-multiple",
+      "tags": ["creative"],
+      "desc": "免费高质量图片素材"
+    },
+    {
+      "id": "codepen-examples",
+      "name": "CodePen",
+      "url": "https://codepen.io",
+      "icon": "mdi:code-brackets",
+      "tags": ["dev", "creative"],
+      "desc": "前端代码演示与分享"
+    },
+    {
+      "id": "stackoverflow-dev",
+      "name": "Stack Overflow",
+      "url": "https://stackoverflow.com",
+      "icon": "mdi:stackoverflow",
+      "tags": ["dev", "tools"],
+      "desc": "程序员问答社区"
+    },
+    {
+      "id": "developer-news",
+      "name": "Hacker News",
+      "url": "https://news.ycombinator.com",
+      "icon": "mdi:newspaper",
+      "tags": ["dev", "news"],
+      "desc": "科技资讯与开发讨论"
+    }
+  ]
+}

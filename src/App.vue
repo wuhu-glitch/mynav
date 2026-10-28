@@ -1,0 +1,349 @@
+<script setup>
+/**
+ * App.vue —— MyNav 根组件
+ *
+ * 负责把「数据（useNavData）」「设置（useLocalStorage）」「布局（DefaultLayout）」
+ * 和各业务组件接到一起：
+ *   - 头部：标题 / 时钟 / 编辑与设置入口 / 搜索框 / 分类标签
+ *   - 主体：置顶快捷区 + 链接卡片网格（按分类或关键词过滤）
+ *   - 页脚：版权与新增入口
+ *   - 全局：设置面板、编辑弹窗、赛博特效
+ */
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import DefaultLayout from './layouts/DefaultLayout.vue'
+import Clock from './components/Clock.vue'
+import SearchBar from './components/SearchBar.vue'
+import CategoryGroup from './components/CategoryGroup.vue'
+import LinkCard from './components/LinkCard.vue'
+import SettingsPanel from './components/SettingsPanel.vue'
+import EditModal from './components/EditModal.vue'
+import CyberEffect from './components/CyberEffect.vue'
+import Header from './components/Header.vue'
+import { useNavData } from './composables/useNavData'
+import { useLocalStorage } from './composables/useLocalStorage'
+import { useCyberTheme } from './composables/useCyberTheme'
+
+// ==================== 数据与设置（单例共享） ====================
+const { navData, loadNavData } = useNavData()
+const { settings, importData, setNavDataProvider } = useLocalStorage()
+
+// 背景样式由主题组合式函数统一计算（背景类型 / 自定义图片 / 遮罩浓度）
+const { bgStyles, bgOverlayStyle } = useCyberTheme(settings)
+
+// 主题色 → CSS 变量：发光、滚动条、扫描线等跟随设置变化
+const ACCENT_MAP = {
+  cyan: { main: '#22d3ee', glow: 'rgba(34, 211, 238, 0.55)' },
+  blue: { main: '#3b82f6', glow: 'rgba(59, 130, 246, 0.55)' },
+  purple: { main: '#a855f7', glow: 'rgba(168, 85, 247, 0.55)' },
+  magenta: { main: '#ec4899', glow: 'rgba(236, 72, 153, 0.55)' },
+  lime: { main: '#a3e635', glow: 'rgba(163, 230, 53, 0.55)' },
+  amber: { main: '#fbbf24', glow: 'rgba(251, 191, 36, 0.55)' }
+}
+
+watch(
+  () => settings.value.accentColor,
+  (name) => {
+    const color = ACCENT_MAP[name] || ACCENT_MAP.cyan
+    const root = document.documentElement.style
+    root.setProperty('--mynav-cyan-default', color.main)
+    root.setProperty('--mynav-cyan-400', color.main)
+    root.setProperty('--mynav-shadow-glow', color.glow)
+  },
+  { immediate: true }
+)
+
+// 把导航数据交给存储模块，供「导出备份」使用（避免循环依赖）
+setNavDataProvider(() => navData.value)
+
+// ==================== 页面状态 ====================
+const filterCtrl = ref('')        // 搜索关键词（同时驱动卡片实时过滤）
+const categoryTab = ref('全部')   // 当前分类标签
+const isEditMode = ref(false)     // 是否处于编辑模式
+const isSettingsOpen = ref(false) // 设置面板开关
+const editingItem = ref(null)     // 正在编辑的链接（null = 新增）
+const showEditModal = ref(false)  // 编辑弹窗开关
+const searchBarRef = ref(null)    // 搜索框组件引用（供快捷键聚焦）
+
+// ==================== 数据加载与全局同步 ====================
+onMounted(async () => {
+  await loadNavData()
+})
+
+// 把主题类挂到 <body> 上：main.css 里 dark/light 两套 CSS 变量靠它生效
+watch(
+  () => settings.value.theme,
+  (theme) => {
+    document.body.classList.toggle('dark', theme === 'dark')
+    document.body.classList.toggle('light', theme !== 'dark')
+  },
+  { immediate: true }
+)
+
+// 同步浏览器标签页标题
+watch(
+  () => settings.value.siteTitle,
+  (title) => {
+    document.title = title || 'MyNav 导航站'
+  },
+  { immediate: true }
+)
+
+// ==================== 分类 ====================
+// 第一个固定为「全部」，其余来自 nav.json 的 categories
+const categories = computed(() => {
+  const cats = [{ title: '全部', filter: null }]
+  for (const cat of navData.value?.categories || []) {
+    cats.push({ title: cat.title, filter: cat.filter })
+  }
+  return cats
+})
+
+// 置顶快捷链接（来自 nav.json 的 pinnedItems）
+const pinnedItems = computed(() => navData.value?.pinnedItems || [])
+
+// ==================== 过滤与搜索 ====================
+const filteredLinks = computed(() => {
+  const keyword = filterCtrl.value.toLowerCase().trim()
+
+  // 未输入关键词：按当前分类过滤
+  if (!keyword) {
+    if (categoryTab.value === '全部') return navData.value?.items || []
+    const cat = categories.value.find((c) => c.title === categoryTab.value)
+    if (!cat?.filter) return navData.value?.items || []
+    return (navData.value?.items || []).filter((item) =>
+      item.tags?.some((tag) => cat.filter.includes(tag))
+    )
+  }
+
+  // 输入关键词：全文匹配 名称/描述/标签/分类
+  return (navData.value?.items || []).filter(
+    (item) =>
+      item.name?.toLowerCase().includes(keyword) ||
+      item.desc?.toLowerCase().includes(keyword) ||
+      item.tags?.some((tag) => tag.toLowerCase().includes(keyword)) ||
+      item.category?.toLowerCase().includes(keyword)
+  )
+})
+
+// ==================== 编辑弹窗 ====================
+const openEdit = (item) => {
+  editingItem.value = item
+  showEditModal.value = true
+}
+
+// ==================== 导入备份 ====================
+// 导入设置，并把备份文件里保存的链接合并进运行时导航数据
+// （已有 id 的项用备份版本覆盖，新 id 视为自定义新增）
+const handleImport = async (event) => {
+  const file = event.target?.files?.[0]
+  if (!file) return
+  try {
+    const data = await importData(file)
+    if (data?.navData?.items?.length) {
+      if (!navData.value) await loadNavData()
+      const merged = new Map((navData.value?.items || []).map((i) => [i.id, i]))
+      for (const item of data.navData.items) merged.set(item.id, item)
+      if (navData.value) {
+        navData.value.items = Array.from(merged.values())
+        if (data.navData.pinnedItems?.length) {
+          navData.value.pinnedItems = data.navData.pinnedItems
+        }
+      }
+    }
+  } catch (error) {
+    alert('导入失败：' + (error?.message || error))
+  } finally {
+    // 清空 input，使同一文件可被重复选择
+    if (event.target) event.target.value = ''
+  }
+}
+
+// ==================== 全局快捷键 ====================
+// "/"（可配置）聚焦搜索框；输入框聚焦时、或面板打开时不抢焦点
+const handleGlobalKeydown = (e) => {
+  if (isSettingsOpen.value || showEditModal.value) return
+  const shortcut = settings.value.searchShortcut || '/'
+  const el = document.activeElement
+  const typing = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')
+  if (e.key === shortcut && !typing) {
+    e.preventDefault()
+    searchBarRef.value?.focus()
+  }
+}
+
+onMounted(() => window.addEventListener('keydown', handleGlobalKeydown))
+onBeforeUnmount(() => window.removeEventListener('keydown', handleGlobalKeydown))
+</script>
+
+<template>
+  <DefaultLayout>
+    <!-- ========== 头部：标题、工具按钮、搜索、分类 ========== -->
+    <template #header>
+      <!-- 头部拆分为独立组件，搜索框与分类栏通过插槽注入 -->
+      <Header
+        :title="settings.siteTitle"
+        :subtitle="settings.siteSubtitle"
+        :is-edit-mode="isEditMode"
+        :is-settings-open="isSettingsOpen"
+        @toggle-edit="isEditMode = !isEditMode"
+        @toggle-settings="isSettingsOpen = !isSettingsOpen"
+        @add="openEdit(null)"
+      >
+        <template #actions>
+          <Clock v-if="settings.showClock" />
+        </template>
+
+        <template #search>
+          <SearchBar
+            ref="searchBarRef"
+            v-model="filterCtrl"
+            :search-engines="navData?.searchEngines || []"
+          />
+        </template>
+
+        <template #categories>
+          <CategoryGroup
+            v-for="cat in categories"
+            :key="cat.title"
+            :category="cat"
+            :active="categoryTab === cat.title"
+            @select="categoryTab = $event"
+          />
+        </template>
+      </Header>
+    </template>
+
+    <!-- ========== 背景层（固定在最底层，可开关/换图） ========== -->
+    <div class="mynav-background" :style="bgStyles" aria-hidden="true"></div>
+    <div class="mynav-background-overlay" :style="bgOverlayStyle" aria-hidden="true"></div>
+
+    <!-- ========== 主体：置顶区 + 链接网格 ========== -->
+    <div v-if="settings.showPinned && pinnedItems.length" class="mynav-pinned">
+      <h3 class="mynav-pinned-title">快速访问</h3>
+      <div class="mynav-pinned-grid">
+        <LinkCard
+          v-for="item in pinnedItems"
+          :key="item.id"
+          :item="item"
+          :editable="isEditMode"
+          @edit="openEdit"
+        />
+      </div>
+    </div>
+
+    <div class="mynav-grid-container" :class="{ compact: settings.layoutMode === 'compact' }">
+      <LinkCard
+        v-for="item in filteredLinks"
+        :key="item.id"
+        :item="item"
+        :spaced="settings.cardiSpacing === 'spaced'"
+        :editable="isEditMode"
+        @edit="openEdit"
+      />
+    </div>
+    <p v-if="!filteredLinks.length" class="mynav-empty">
+      没有匹配的链接，换个分类或关键词试试。
+    </p>
+
+    <!-- ========== 设置面板（弹出层） ========== -->
+    <template #settings-panel>
+      <SettingsPanel
+        v-if="isSettingsOpen"
+        @close="isSettingsOpen = false"
+        @import="handleImport"
+      />
+    </template>
+
+    <!-- ========== 页脚 ========== -->
+    <template #footer>
+      <footer class="mynav-footer">
+        <p class="mynav-footer-text">
+          {{ settings.siteSubtitle }} · {{ new Date().getFullYear() }} ·
+          隐私优先：所有数据仅保存在本浏览器
+        </p>
+        <button v-if="isEditMode" class="mynav-footer-edit" @click="openEdit(null)">
+          ＋ 新增链接
+        </button>
+      </footer>
+    </template>
+
+    <!-- ========== 赛博特效（扫描线 / 光标拖尾） ========== -->
+    <CyberEffect />
+
+    <!-- ========== 编辑弹窗 ========== -->
+    <EditModal v-model:show="showEditModal" :item="editingItem" />
+  </DefaultLayout>
+</template>
+
+<style scoped>
+.mynav-pinned {
+  @apply mb-8 border-l-4 border-cyan-500 pl-4;
+}
+
+.mynav-pinned-title {
+  @apply text-lg font-bold text-cyan-400 mb-4
+         uppercase tracking-wider;
+  margin: 0 0 1rem 0;
+}
+
+.mynav-pinned-grid {
+  @apply grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4;
+}
+
+.mynav-grid-container {
+  @apply grid gap-6;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 641px) and (max-width: 768px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @media (min-width: 769px) and (max-width: 1024px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  @media (min-width: 1025px) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* 紧凑布局：卡片更密集 */
+.mynav-grid-container.compact {
+  gap: 0.75rem;
+}
+
+.mynav-empty {
+  @apply text-sm text-gray-500 py-8 text-center;
+}
+
+.mynav-footer {
+  @apply mt-12 py-6 border-t border-gray-800
+         flex items-center justify-between flex-wrap gap-3;
+}
+
+.mynav-footer-text {
+  @apply text-xs text-gray-500 m-0;
+}
+
+.mynav-footer-edit {
+  @apply px-4 py-2 rounded-lg
+         bg-cyan-600 hover:bg-cyan-500
+         text-white text-sm font-medium
+         transition-all duration-200 active:scale-95;
+}
+.mynav-background {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background-size: cover;
+  background-position: center;
+  transition: background 0.3s ease;
+}
+
+.mynav-background-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+</style>
