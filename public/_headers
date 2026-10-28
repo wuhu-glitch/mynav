@@ -1,0 +1,32 @@
+# Cloudflare Pages 响应头配置
+#
+# 作用对象：构建产物里的所有静态资源。构建完 npm run build 后，
+# 这个文件会被原样复制到 dist/_headers，由 Cloudflare Pages 在边缘生效。
+#
+# 设计原则：站点不需要任何第三方脚本、字体或接口，所以一律收紧到 'self'，
+# 只有背景图允许外部 https 图片（用户可以在设置里填自己的图床地址）。
+
+/*
+  # 禁止浏览器猜测 MIME 类型（防止把 .json 当脚本执行）
+  X-Content-Type-Options: nosniff
+  # 不允许被嵌入 iframe，避免点击劫持
+  X-Frame-Options: DENY
+  # 跨站跳转时不泄露完整来源地址
+  Referrer-Policy: strict-origin-when-cross-origin
+  # 关闭本页用不到的硬件与兴趣组权限
+  Permissions-Policy: geolocation=(), camera=(), microphone=(), payment=(), usb=(), interest-cohort=()
+  # 内容安全策略：
+  #   script-src 'self'      —— 只允许打包后的自有脚本
+  #   style-src 'unsafe-inline' —— Vue 的 :style 绑定与 Tailwind 需要行内样式
+  #   img-src https: data:   —— 图标为内联 SVG，背景图允许用户自填的 https 图片与本地 data URL
+  #   connect-src 'self'     —— 只允许同源请求（导航数据来自自身 /nav.json）
+  #   frame-ancestors 'none' —— 与 X-Frame-Options 双保险
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'
+
+# 导航数据可能常改，给一个短缓存，避免更新后访客长时间看到旧链接
+/nav.json
+  Cache-Control: public, max-age=300, must-revalidate
+
+# 带哈希的构建产物可以长缓存
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

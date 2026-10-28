@@ -10,6 +10,7 @@
 import { computed } from 'vue'
 import { Icon as IconifyIcon } from '@iconify/vue'
 import { useLocalStorage } from '../composables/useLocalStorage'
+import { isSafeUrl } from '../utils/url'
 
 const props = defineProps({
   // 链接数据，字段见 nav.json schema
@@ -49,7 +50,8 @@ const neonClass = computed(() => (settings.value.effects?.neonBorders ? 'neon-bo
 // 打开链接
 const openLink = () => {
   const url = props.item?.url
-  if (!url) return
+  // 只放行 http/https：nav.json 若被写入 javascript: 之类，点击也不该执行
+  if (!isSafeUrl(url)) return
   window.open(url, '_blank', 'noopener,noreferrer')
 }
 

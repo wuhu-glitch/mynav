@@ -25,7 +25,9 @@ export default defineConfig({
   },
 
   server: {
-    host: '0.0.0.0', // 允许局域网访问，方便真机调试
+    // 只监听回环地址：开发服务器默认不暴露到局域网，
+    // 避免 dev-only 依赖告警（vite / esbuild 的开发服务器问题）被同网段利用
+    host: '127.0.0.1',
     port: 5173,
     open: true
   },
