@@ -10,6 +10,16 @@
 
   /* 故障文字偏移色 */
   --mynav-glitch-offset: #ff00aa;
+
+  /* ------------------------------------------------------------
+     标题字号：桌面端 / 移动端各一份
+     组件里统一读这四个变量，想整体调大调小只改这里，不必翻组件样式。
+     （移动端断点固定为 640px，与 Tailwind 的 sm 一致）
+     ------------------------------------------------------------ */
+  --mynav-title-size: 2.25rem;      /* 36px */
+  --mynav-title-size-sm: 1.75rem;   /* 28px */
+  --mynav-subtitle-size: 0.9rem;
+  --mynav-subtitle-size-sm: 0.75rem;
 }
 
 .dark {
@@ -298,16 +308,10 @@ body {
   }
 }
 
-/* 响应式调整 */
-@media (max-width: 640px) {
-  .mynav-title {
-    font-size: 1.75rem;
-  }
-
-  .mynav-subtitle {
-    font-size: 0.75rem;
-  }
-}
+/* 说明：标题/副标题的响应式字号不在这里定义。
+   .mynav-title / .mynav-subtitle 带有 scoped 属性选择器（[data-v-xxx]），
+   全局同名选择器优先级更低、永远会被盖掉，改在这里也不生效；
+   现在统一由 Header.vue 读取 --mynav-title-size(-sm) 控制。 */
 
 /* 打印样式 */
 @media print {
