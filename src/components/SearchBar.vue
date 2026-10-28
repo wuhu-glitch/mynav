@@ -59,8 +59,8 @@ const ENGINE_ICONS = {
   baidu: 'simple-icons:baidu',
   bing: 'mdi:microsoft-bing',
   github: 'mdi:github',
-  zhihu: 'mdi:zhihu',
-  bilibili: 'mdi:bilibili'
+  zhihu: 'simple-icons:zhihu',
+  bilibili: 'simple-icons:bilibili'
 }
 const engineIcon = computed(() => ENGINE_ICONS[currentEngine.value.id] || 'mdi:magnify')
 

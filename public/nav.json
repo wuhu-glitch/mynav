@@ -72,7 +72,7 @@
       "id": "p3",
       "name": "Stack Overflow",
       "url": "https://stackoverflow.com",
-      "icon": "mdi:stackoverflow",
+      "icon": "simple-icons:stackoverflow",
       "tags": ["dev", "tools"],
       "category": "开发工具"
     },
@@ -90,7 +90,7 @@
       "id": "vitejs",
       "name": "Vite",
       "url": "https://vitejs.dev",
-      "icon": "mdi:vitejs-svelte",
+      "icon": "simple-icons:vite",
       "tags": ["dev", "tools"],
       "desc": "下一代前端工具链"
     },
@@ -98,7 +98,7 @@
       "id": "tailwindcss",
       "name": "Tailwind CSS",
       "url": "https://tailwindcss.com",
-      "icon": "mdi:css",
+      "icon": "simple-icons:css3",
       "tags": ["dev", "tools"],
       "desc": "实用优先的 CSS 框架"
     },
@@ -114,7 +114,7 @@
       "id": "eslint",
       "name": "ESLint",
       "url": "https://eslint.org",
-      "icon": "mdi:microsoft-eslint",
+      "icon": "simple-icons:eslint",
       "tags": ["dev", "tools"],
       "desc": "JavaScript/TypeScript 代码检查工具"
     },
@@ -138,7 +138,7 @@
       "id": "figma",
       "name": "Figma",
       "url": "https://www.figma.com",
-      "icon": "mdi:figma",
+      "icon": "simple-icons:figma",
       "tags": ["design", "creative"],
       "desc": "在线协作设计工具"
     },
@@ -146,7 +146,7 @@
       "id": "ui-ux-design",
       "name": "UI/UX 设计指南",
       "url": "https://www.smashingmagazine.com/design-guides/",
-      "icon": "mdi:design",
+      "icon": "mdi:palette-outline",
       "tags": ["design", "creative"],
       "desc": "优秀的 UI/UX 设计资源"
     },
@@ -154,7 +154,7 @@
       "id": "leetcode-algorithms",
       "name": "LeetCode",
       "url": "https://leetcode.com",
-      "icon": "mdi:chalkboard-variant",
+      "icon": "mdi:school-outline",
       "tags": ["learn", "edu"],
       "desc": "算法与数据结构练习平台"
     },
@@ -162,7 +162,7 @@
       "id": "free-courses",
       "name": "freeCodeCamp",
       "url": "https://www.freecodecamp.org",
-      "icon": "mdi:c-code",
+      "icon": "mdi:language-c",
       "tags": ["learn", "edu"],
       "desc": "免费编程课程平台"
     },
@@ -178,7 +178,7 @@
       "id": "bilibili-media",
       "name": "Bilibili",
       "url": "https://www.bilibili.com",
-      "icon": "mdi:bilibili",
+      "icon": "simple-icons:bilibili",
       "tags": ["fun", "media"],
       "desc": "弹幕视频网站"
     },
@@ -194,7 +194,7 @@
       "id": "muse-music",
       "name": "Muse",
       "url": "https://muse.ac",
-      "icon": "mdi:library-music",
+      "icon": "mdi:music-note",
       "tags": ["fun", "media"],
       "desc": "谱曲与音乐创作平台"
     },
@@ -218,7 +218,7 @@
       "id": "notion-productivity",
       "name": "Notion",
       "url": "https://www.notion.so",
-      "icon": "mdi:notion",
+      "icon": "simple-icons:notion",
       "tags": ["common", "daily"],
       "desc": "生产力协作工具"
     },
@@ -242,7 +242,7 @@
       "id": "can-can",
       "name": "Canva",
       "url": "https://www.canva.com",
-      "icon": "mdi:can-can",
+      "icon": "simple-icons:canva",
       "tags": ["design", "creative"],
       "desc": "在线图形设计工具"
     },
@@ -266,7 +266,7 @@
       "id": "stackoverflow-dev",
       "name": "Stack Overflow",
       "url": "https://stackoverflow.com",
-      "icon": "mdi:stackoverflow",
+      "icon": "simple-icons:stackoverflow",
       "tags": ["dev", "tools"],
       "desc": "程序员问答社区"
     },
