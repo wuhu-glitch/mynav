@@ -1,0 +1,58 @@
+name: CI
+
+# 每次推到 main / 提 PR 都跑一遍：单元测试 + 生产构建 + 产物自检。
+# 目的不是"跑个绿勾"，而是拦住会让线上白屏或丢配置的改动：
+#   - 构建失败（语法错误、依赖不匹配）
+#   - nav.json 被改坏（JSON 解析失败会让页面回落到内置默认数据）
+#   - _headers / _redirects 没进 dist（安全响应头与 SPA 回退都靠它们）
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 安装依赖（按 lockfile，禁用安装脚本）
+        run: npm ci --ignore-scripts
+
+      - name: 单元测试
+        run: npm test
+
+      - name: 生产构建
+        run: npm run build
+
+      - name: 产物自检
+        run: |
+          set -euo pipefail
+          test -f dist/index.html || { echo "缺少 dist/index.html"; exit 1; }
+          test -f dist/nav.json || { echo "缺少 dist/nav.json"; exit 1; }
+          test -f dist/_headers || { echo "缺少 dist/_headers（安全响应头会失效）"; exit 1; }
+          test -f dist/_redirects || { echo "缺少 dist/_redirects（深链接会 404）"; exit 1; }
+          node -e "JSON.parse(require('fs').readFileSync('dist/nav.json','utf8'))" || { echo "nav.json 不是合法 JSON"; exit 1; }
+          grep -q "Content-Security-Policy" dist/_headers || { echo "CSP 缺失"; exit 1; }
+          echo "产物检查通过"
+
+      - name: 上传构建产物（便于排查，不参与部署）
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+          retention-days: 7
