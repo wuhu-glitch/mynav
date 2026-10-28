@@ -14,6 +14,11 @@ import { Icon as IconifyIcon } from '@iconify/vue'
 import { useLocalStorage } from '../composables/useLocalStorage'
 import { useNavData } from '../composables/useNavData'
 
+const props = defineProps({
+  // 只有管理员才看得到「数据与备份」区（导入会改变本地内容）
+  canEdit: { type: Boolean, default: false }
+})
+
 const emit = defineEmits(['close', 'import'])
 
 const { settings, resetSettings, exportData } = useLocalStorage()
@@ -369,8 +374,8 @@ const triggerImport = () => importInput.value?.click()
           </div>
         </section>
 
-        <!-- ==================== 8. 数据 ==================== -->
-        <section class="panel-section">
+        <!-- ==================== 8. 数据（仅管理员可见） ==================== -->
+        <section v-if="props.canEdit" class="panel-section">
           <h3 class="section-title">
             <IconifyIcon icon="mdi:database-outline" />
             数据与备份
