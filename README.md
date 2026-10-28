@@ -50,11 +50,19 @@ mynav/
     │   └── EditModal.vue           # 编辑弹窗
     ├── layouts/
     │   └── DefaultLayout.vue       # 默认布局
-    └── composables/                # 组合式函数
-        ├── useNavData.js           # 导航数据管理
-        ├── useLocalStorage.js      # 本地存储管理
-        └── useCyberTheme.js        # 赛博主题管理
+    ├── composables/                # 组合式函数
+    │   ├── useNavData.js           # 导航数据管理
+    │   ├── useLocalStorage.js      # 本地存储管理
+    │   └── useCyberTheme.js        # 赛博主题管理
+    ├── utils/                      # 纯逻辑工具（可直接单测）
+    │   ├── backup.js               # 备份文件校验与合并
+    │   └── navDiff.js              # 链接增删改的差异计算
+    └── icons/                      # 图标离线集合
+        ├── index.js                # 启动时注册图标集
+        └── collections.json        # 由 npm run icons 生成
 ```
+
+构建相关的辅助脚本放在 `scripts/`：`build-icons.mjs`（生成离线图标集合）、`test-*.mjs`（单元测试，随 `npm test` 执行）。
 
 ## 🎯 vite.config.js 使用说明
 
@@ -330,13 +338,15 @@ npm test
 
 ### Q2: 图标不显示？
 
-先确认图标 ID 是合法的 Iconify 名称（如 `mdi:github`、`simple-icons:baidu`）。注意：本项目使用 `@iconify/vue` 4.3.x，导入方式必须是
+先确认图标 ID 是合法的 Iconify 名称（如 `mdi:github`、`simple-icons:baidu`）。本项目使用 `@iconify/vue` 4.3.x，导入方式必须是
 
 ```js
 import { Icon as IconifyIcon } from '@iconify/vue'
 ```
 
 **不要**写成 `import IconifyIcon from '@iconify/vue/dist/iconify.vue'` —— 4.x 的包里没有这个文件，构建时会报 `Rollup failed to resolve import`。
+
+另外，界面骨架用到的图标（工具栏、设置面板、分类按钮等）在构建前已被抽成离线集合 `src/icons/collections.json`，**断网也不会显示成空白方块**。新增硬编码图标后执行一次 `npm run icons` 重新生成即可；`nav.json` 里自行添加的任意图标仍走 Iconify 在线拉取，不受影响。
 
 ### Q3: 自定义域名如何配置？
 
