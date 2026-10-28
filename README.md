@@ -377,10 +377,21 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
 
 ```bash
 npm run hash-password -- "你的口令"
-# 输出 scrypt1$<salt>$<hash>，复制整串
-
-npx wrangler kv key put "auth:password" "scrypt1$..." --namespace-id=<namespace id> --remote
+# 输出一整个 JSON：{"hash":"scrypt1$<salt>$<hash>","updatedAt":"..."}
 ```
+
+**注意：值必须存成 JSON，不是裸哈希串。** 服务端用 `readJson()` 读取 `auth:password`，
+再取对象里的 `.hash`；只写 `scrypt1$...` 裸串会解析失败，登录接口会一直报「未初始化管理员口令」。
+
+写入方式二选一：
+
+```bash
+# 方式一：命令行（把整段 JSON 作为值）
+npx wrangler kv key put "auth:password" "{\"hash\":\"scrypt1$...\"}" \
+  --namespace-id=<namespace id> --remote
+```
+
+方式二：控制台 → Workers KV → `mynav-kv` → 添加条目，键 `auth:password`，值粘整段 JSON。
 
 口令只在本机命令行出现一次；KV 里存的是 PBKDF2-SHA256（12 万次迭代）加盐哈希，不可逆推。
 `MYNAV_ADMIN_PASSWORD` 环境变量已不再是必需项，仅作旧部署迁移的兜底。
