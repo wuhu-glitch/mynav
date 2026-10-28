@@ -469,7 +469,6 @@ const triggerImport = () => importInput.value?.click()
   display: flex;
   justify-content: flex-end;
   background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(2px);
 }
 
 .mynav-settings-panel {
@@ -485,7 +484,6 @@ const triggerImport = () => importInput.value?.click()
   @apply sticky top-0 z-10 px-5 py-4
          flex items-center justify-between
          bg-gray-950/95 border-b border-gray-800;
-  backdrop-filter: blur(8px);
 }
 
 .panel-title {

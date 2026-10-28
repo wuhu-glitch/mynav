@@ -123,7 +123,6 @@ async function submit() {
   justify-content: center;
   padding: 16px;
   background: rgba(3, 7, 16, 0.72);
-  backdrop-filter: blur(6px);
 }
 
 .mynav-login {

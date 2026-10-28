@@ -29,6 +29,23 @@ const categories = computed(() => navData.value?.categories || [])
 // 是否处于「编辑已有链接」状态
 const isEditing = computed(() => Boolean(props.item?.id))
 
+/**
+ * 图标字段：支持两种写法
+ *   1) Iconify ID（带冒号，如 mdi:github / simple-icons:bilibili / logos:vue）
+ *   2) 直接填 emoji（如 🐙），卡片会当文本渲染，不发起图标网络请求
+ */
+const isIconifyId = computed(() => String(formData.value.icon || '').includes(':'))
+
+// 常用图标快捷选项，点一下就填进输入框（不用去翻图标站）
+const ICON_PRESETS = [
+  { id: 'mdi:github', label: 'GitHub' },
+  { id: 'mdi:youtube', label: 'YouTube' },
+  { id: 'simple-icons:bilibili', label: 'B站' },
+  { id: 'mdi:google', label: 'Google' },
+  { id: 'mdi:book-open-variant', label: '文档' },
+  { id: 'mdi:code-tags', label: '代码' }
+]
+
 // 空白表单
 const createEmptyForm = () => ({
   name: '',
@@ -178,8 +195,16 @@ const handleDelete = () => {
 
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">图标（Iconify ID）</label>
-            <input v-model="formData.icon" class="form-input" placeholder="mdi:github" />
+            <label class="form-label">图标（Iconify ID 或 emoji）</label>
+            <div class="icon-input-row">
+              <span class="icon-preview" aria-hidden="true">
+                <span v-if="formData.icon && !isIconifyId" class="icon-preview__emoji">
+                  {{ formData.icon }}
+                </span>
+                <IconifyIcon v-else :icon="formData.icon || 'mdi:link-variant'" />
+              </span>
+              <input v-model="formData.icon" class="form-input" placeholder="mdi:github" />
+            </div>
           </div>
 
           <div class="form-group">
@@ -192,6 +217,25 @@ const handleDelete = () => {
             </select>
           </div>
         </div>
+
+        <!-- 常用图标快捷填入 -->
+        <div class="icon-suggest">
+          <span class="icon-suggest__label">常用：</span>
+          <button
+            v-for="preset in ICON_PRESETS"
+            :key="preset.id"
+            class="icon-chip"
+            type="button"
+            @click="formData.icon = preset.id"
+          >
+            <IconifyIcon :icon="preset.id" />
+            <span>{{ preset.label }}</span>
+          </button>
+        </div>
+        <p class="form-hint">
+          图标 ID 去 icon-sets.iconify.design 搜索后复制，格式如 mdi:github、simple-icons:bilibili、logos:vue；
+          也可以直接填一个 emoji（如 🐙）。留空显示默认链接图标。
+        </p>
 
         <div class="form-group">
           <label class="form-label">标签（逗号分隔）</label>
@@ -222,7 +266,6 @@ const handleDelete = () => {
   justify-content: center;
   padding: 1rem;
   background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(4px);
 }
 
 .modal-content {
@@ -348,5 +391,70 @@ const handleDelete = () => {
   .actions {
     gap: 0.5rem;
   }
+}
+
+/* ===== 图标字段：实时预览 + 快捷预设 ===== */
+.icon-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.icon-preview {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: 0 0 auto;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  background: rgba(34, 211, 238, 0.08);
+  color: #67e8f9;
+  font-size: 1.25rem;
+}
+
+.icon-preview__emoji {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.icon-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  margin: -0.25rem 0 0.25rem;
+}
+
+.icon-suggest__label {
+  font-size: 0.75rem;
+  color: var(--mynav-text-dim, #94a3b8);
+}
+
+.icon-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  border: 1px solid rgba(34, 211, 238, 0.25);
+  background: rgba(34, 211, 238, 0.06);
+  color: #a5f3fc;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.icon-chip:hover {
+  border-color: rgba(34, 211, 238, 0.6);
+  background: rgba(34, 211, 238, 0.14);
+}
+
+.form-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.55;
+  color: var(--mynav-text-dim, #94a3b8);
 }
 </style>

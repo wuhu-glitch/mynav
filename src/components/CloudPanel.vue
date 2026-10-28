@@ -265,7 +265,6 @@ onMounted(loadVersions)
   display: flex;
   justify-content: flex-end;
   background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(2px);
 }
 
 .mynav-cloud-panel {
@@ -281,7 +280,6 @@ onMounted(loadVersions)
   @apply sticky top-0 z-10 px-5 py-4
          flex items-center justify-between
          bg-gray-950/95 border-b border-gray-800;
-  backdrop-filter: blur(8px);
 }
 
 .panel-title {

@@ -119,17 +119,20 @@ body {
   position: relative;
   border-radius: 12px;
   background: var(--mynav-bg-card);
-  backdrop-filter: blur(12px);
   border: 1px solid rgba(34, 211, 238, 0.2);
   overflow: hidden;
-  transition: all 0.3s ease;
+  /* 性能说明：这里原本有 backdrop-filter: blur(12px)。
+     一屏 20~30 张卡片 = 20~30 个实时高斯模糊层，滚动/悬停时每一帧都要
+     重新采样背景，中低端机直接掉到 20fps 以下。去掉后视觉差异很小
+     （--mynav-bg-card 本身已经是半透明深色），流畅度提升明显。 */
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
 .mynav-card:hover {
   border-color: var(--mynav-cyan-default);
-  box-shadow: 0 0 20px var(--mynav-shadow-glow),
-               0 0 40px rgba(34, 211, 238, 0.3);
-  transform: translateY(-4px);
+  /* 阴影从两层减为一层：投影半径越大，重绘越贵 */
+  box-shadow: 0 0 18px var(--mynav-shadow-glow);
+  transform: translateY(-3px);
 }
 
 /* 霓虹发光边框动画 */
@@ -330,8 +333,6 @@ body {
   border-left-width: 3px;
   border-radius: 6px;
   box-shadow: 0 0 18px rgba(34, 211, 238, 0.25);
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
   animation: mynav-notice-in 0.22s ease-out;
 }
 
@@ -392,7 +393,6 @@ body {
   border: 1px solid rgba(244, 63, 94, 0.45);
   border-radius: 14px;
   background: rgba(30, 12, 20, 0.82);
-  backdrop-filter: blur(6px);
   color: #fecdd3;
 }
 

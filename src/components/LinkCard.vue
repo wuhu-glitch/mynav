@@ -41,6 +41,8 @@ const TAG_LABELS = {
 }
 
 const iconName = computed(() => props.item?.icon || 'mdi:link-variant')
+// 图标字段既支持 Iconify ID（含冒号，如 mdi:github），也支持直接填 emoji
+const isIconifyId = computed(() => String(iconName.value).includes(':'))
 const tagList = computed(() => (Array.isArray(props.item?.tags) ? props.item.tags : []))
 const labelOf = (tag) => TAG_LABELS[tag] || tag
 
@@ -86,7 +88,8 @@ const handleEdit = (event) => {
     <!-- 图标 + 名称 -->
     <div class="card-head">
       <span class="card-icon">
-        <IconifyIcon :icon="iconName" />
+        <span v-if="!isIconifyId" class="card-icon__emoji">{{ iconName }}</span>
+        <IconifyIcon v-else :icon="iconName" />
       </span>
       <h3 class="card-name">{{ item.name }}</h3>
     </div>
@@ -108,7 +111,8 @@ const handleEdit = (event) => {
          border border-gray-700
          bg-gray-900/70
          cursor-pointer
-         transition-all duration-300;
+         /* 只过渡会变化的属性（transform/颜色/阴影），避免 transition-all 全属性重算 */
+         transition duration-200;
 }
 
 /* 置顶区卡片更宽松 */
@@ -139,6 +143,12 @@ const handleEdit = (event) => {
          w-9 h-9 rounded-lg
          bg-cyan-500/10 text-cyan-300 text-xl
          shrink-0;
+}
+
+/* emoji 图标：直接用文本渲染，不再走 Iconify 网络请求 */
+.card-icon__emoji {
+  font-size: 1.15rem;
+  line-height: 1;
 }
 
 .card-name {
