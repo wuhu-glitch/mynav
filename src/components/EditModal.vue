@@ -254,6 +254,8 @@ const handleDelete = () => {
          text-sm font-medium
          transition-all duration-200
          active:scale-95;
+  /* 触摸友好：py-2 只有 36px 高，手机上点「保存」容易点偏 */
+  min-height: 40px;
 }
 
 .action-btn.close {
@@ -319,8 +321,31 @@ const handleDelete = () => {
 }
 
 @media (max-width: 640px) {
+  /* 弹窗几乎占满窄屏：外层缩小留白，头部缩小内边距，避免内容被挤成一列 */
+  .mynav-edit-modal {
+    padding: 0.5rem;
+    align-items: flex-start;
+  }
+
+  .modal-content {
+    max-height: calc(100dvh - 1rem);
+  }
+
+  .header {
+    padding: 0.75rem 1rem;
+  }
+
   .form-row {
     grid-template-columns: 1fr;
+  }
+
+  /* 窄屏收窄内边距，把宽度让给输入框 */
+  .body {
+    padding: 1rem;
+  }
+
+  .actions {
+    gap: 0.5rem;
   }
 }
 </style>

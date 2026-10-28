@@ -426,6 +426,12 @@ const triggerImport = () => importInput.value?.click()
   @apply p-2 rounded-lg text-gray-400
          hover:text-white hover:bg-gray-800
          transition-colors;
+  /* 触摸友好：右上角关闭键是手机上最常点的目标 */
+  min-width: 40px;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .panel-body {

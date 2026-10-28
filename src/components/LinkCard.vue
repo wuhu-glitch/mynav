@@ -159,11 +159,29 @@ const handleEdit = (event) => {
 
 .card-edit-btn {
   @apply absolute top-2 right-2
-         p-1.5 rounded-md
+         rounded-md
          text-gray-400 bg-gray-800/80
          border border-gray-700
          transition-colors duration-200
          hover:text-cyan-300 hover:border-cyan-400;
   z-index: 2;
+  /* 显式尺寸：原来只靠 p-1.5 + 图标撑到约 28px，手机上极易点空 */
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
+
+@media (max-width: 640px) {
+  /* 卡片本体点击 = 打开链接，编辑键是唯一「改它」的入口，窄屏必须够大 */
+  .card-edit-btn {
+    width: 36px;
+    height: 36px;
+    top: 6px;
+    right: 6px;
+    font-size: 1.125rem;
+  }
 }
 </style>

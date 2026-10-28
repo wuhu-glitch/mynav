@@ -48,6 +48,18 @@ const handleClick = () => emit('select', props.category?.title)
          text-sm text-gray-400
          transition-all duration-300
          hover:border-cyan-500/60 hover:text-cyan-300;
+  /* 触摸友好：py-2 实际高度只有 38px，统一抬到 40px */
+  min-height: 40px;
+}
+
+/* 窄屏把分类按钮做成 44px 高的「胶囊」，两行排列也不会太挤 */
+@media (max-width: 640px) {
+  .mynav-category {
+    min-height: 44px;
+    padding-left: 0.875rem;
+    padding-right: 0.875rem;
+    flex: 0 0 auto;
+  }
 }
 
 .mynav-category.active {
