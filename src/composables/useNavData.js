@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 import {
   emptyDiff,
   normalizeDiff,
@@ -33,6 +33,9 @@ let basePinnedItems = []
 // 当前生效的本地差异
 let itemDiff = emptyDiff()
 let pinnedDiff = emptyDiff()
+
+// 云端装载的元信息（供界面显示「当前版本 / 来源」）
+const cloudMeta = reactive({ source: 'static', version: '', updatedAt: '' })
 
 // nav.json 加载失败（本地开发 404、JSON 损坏等）时的内置兜底数据
 const defaultNavData = {
@@ -127,22 +130,97 @@ async function loadNavData() {
         console.error('加载导航数据失败，使用内置默认数据:', error)
       }
 
-      // 先取本地差异，再组装成最终数据
-      const stored = readStoredDiff()
-      itemDiff = stored.items
-      pinnedDiff = stored.pinned
-
-      navData.value = {
-        ...loadedData,
-        items: [],
-        pinnedItems: []
-      }
-      setBaseData(loadedData)
-
+      finishLoad(loadedData)
       return navData.value
     })()
   }
   return loadPromise
+}
+
+/**
+ * 用「原始数据 + 差异」完成一次装载（静态与云端两条路径共用）。
+ * @param {object} loadedData nav.json 或 KV 里的配置
+ */
+function finishLoad(loadedData) {
+  // 先取本地差异，再组装成最终数据
+  const stored = readStoredDiff()
+  itemDiff = stored.items
+  pinnedDiff = stored.pinned
+
+  navData.value = {
+    ...loadedData,
+    items: [],
+    pinnedItems: []
+  }
+  setBaseData(loadedData)
+}
+
+/**
+ * 云端模式装载：KV → 本地缓存 → 静态 nav.json，逐级降级。
+ *
+ * 降级顺序的理由：
+ *   1. KV 是管理员发布的公共配置，最权威；
+ *   2. 弱网/离线时用上次成功读到的缓存，至少不是空白页；
+ *   3. 缓存也没有（首次访问 + 接口挂掉）才退回静态 nav.json —— 保证页面永远可用。
+ *
+ * @returns {Promise<{ source: 'kv' | 'cache' | 'static', version?: string, updatedAt?: string }>}
+ */
+async function loadCloudNavData() {
+  if (navData.value) {
+    return { source: 'kv' }
+  }
+  if (!loadPromise) {
+    loadPromise = (async () => {
+      const { fetchCloudNav, readCloudCache } = await import('../utils/cloudNav.js')
+
+      const remote = await fetchCloudNav()
+      if (remote?.nav) {
+        finishLoad(remote.nav)
+        cloudMeta.source = 'kv'
+        cloudMeta.version = remote.version
+        cloudMeta.updatedAt = remote.updatedAt
+        return cloudMeta
+      }
+
+      const cached = readCloudCache()
+      if (cached?.nav) {
+        finishLoad(cached.nav)
+        cloudMeta.source = 'cache'
+        cloudMeta.version = cached.version || ''
+        cloudMeta.updatedAt = cached.updatedAt || ''
+        return cloudMeta
+      }
+
+      // 最后兜底：静态 nav.json（与纯静态模式完全一致）
+      let loadedData = defaultNavData
+      try {
+        const response = await fetch('/nav.json')
+        if (response.ok) loadedData = await response.json()
+      } catch (error) {
+        console.warn('云端不可用且静态配置读取失败，使用内置默认数据:', error)
+      }
+      finishLoad(loadedData)
+      cloudMeta.source = 'static'
+      return cloudMeta
+    })()
+  }
+  return loadPromise
+}
+
+/**
+ * 把当前生效的配置记为新的「原始数据」，并清空本地差异。
+ *
+ * 发布到云端之后调用：否则同一条改动会「既是云端配置、又是本地差异」，
+ * 下次打开会被叠加两次（尤其是删除标记）。
+ */
+function commitPublishedNav() {
+  if (!navData.value) return
+  baseItems = Array.isArray(navData.value.items) ? navData.value.items : []
+  basePinnedItems = Array.isArray(navData.value.pinnedItems) ? navData.value.pinnedItems : []
+  itemDiff = emptyDiff()
+  pinnedDiff = emptyDiff()
+  persistDiff()
+  rebuildLists()
 }
 
 /** 添加新的导航项 */
@@ -213,6 +291,9 @@ export function useNavData() {
   return {
     navData,
     loadNavData,
+    loadCloudNavData,
+    commitPublishedNav,
+    cloudMeta,
     addNavItem,
     updateNavItem,
     removeNavItem,

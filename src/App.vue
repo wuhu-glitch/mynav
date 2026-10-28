@@ -19,6 +19,8 @@ import LinkCard from './components/LinkCard.vue'
 // 一个 chunk：首屏 JS 明显变小，打开面板时才按需下载（浏览器会缓存）。
 const SettingsPanel = defineAsyncComponent(() => import('./components/SettingsPanel.vue'))
 const EditModal = defineAsyncComponent(() => import('./components/EditModal.vue'))
+// 云端配置面板只对管理员有意义，同样单独切 chunk
+const CloudPanel = defineAsyncComponent(() => import('./components/CloudPanel.vue'))
 import CyberEffect from './components/CyberEffect.vue'
 import Header from './components/Header.vue'
 import { useNavData } from './composables/useNavData'
@@ -37,7 +39,7 @@ import {
 const AdminLogin = defineAsyncComponent(() => import('./components/AdminLogin.vue'))
 
 // ==================== 数据与设置（单例共享） ====================
-const { navData, loadNavData, applyImportedData } = useNavData()
+const { navData, loadNavData, loadCloudNavData, applyImportedData } = useNavData()
 const { settings, saveSettings, setNavDataProvider } = useLocalStorage()
 
 // 背景样式由主题组合式函数统一计算（背景类型 / 自定义图片 / 遮罩浓度）
@@ -85,6 +87,7 @@ const isEditMode = ref(false)     // 是否处于编辑模式
 const isSettingsOpen = ref(false) // 设置面板开关
 const editingItem = ref(null)     // 正在编辑的链接（null = 新增）
 const showEditModal = ref(false)  // 编辑弹窗开关
+const showCloudPanel = ref(false) // 云端配置面板开关
 const searchBarRef = ref(null)    // 搜索框组件引用（供快捷键聚焦）
 
 // 导入结果提示（成功 / 失败都就地反馈，不再用阻塞式 alert）
@@ -116,7 +119,14 @@ onMounted(async () => {
   isAdmin.value = session.admin
   adminConfigured.value = session.configured
 
-  await loadNavData()
+  // 3) 装载导航数据：
+  //    - 云端开关打开 → KV → 本地缓存 → 静态 nav.json 逐级降级；
+  //    - 关闭（默认）→ 只读静态 nav.json，整站不发任何 /api 请求。
+  if (settings.value.cloudSync) {
+    await loadCloudNavData()
+  } else {
+    await loadNavData()
+  }
   prefetchPanels()
 })
 
@@ -141,6 +151,37 @@ async function handleAdminLogout() {
   await logoutAdmin()
   isAdmin.value = false
   showNotice('ok', ['已退出管理员模式'])
+}
+
+/** 打开云端配置面板（从设置面板跳转时先关掉设置，避免两层抽屉叠在一起） */
+function handleOpenCloud() {
+  isSettingsOpen.value = false
+  showCloudPanel.value = true
+}
+
+/**
+ * 切换「云端公共配置」开关。
+ *
+ * 切换意味着数据来源整体改变（静态 ↔ KV），这里直接整页刷新：
+ * 比在内存里拆装基线可靠，也不会出现「一半静态一半云端」的混合状态。
+ * 关闭时顺手清掉云端缓存，避免下次打开看到过期内容。
+ */
+function handleCloudToggle(enabled) {
+  const next = Boolean(enabled)
+  saveSettings({ ...settings.value, cloudSync: next })
+  if (!next) {
+    try {
+      localStorage.removeItem('mynav-cloud-cache')
+    } catch {
+      // 忽略存储异常
+    }
+  }
+  window.location.reload()
+}
+
+/** 发布或回滚成功后刷新页面：让新版本立即成为页面数据 */
+function handleCloudPublished() {
+  window.location.reload()
 }
 
 /**
@@ -435,8 +476,19 @@ onBeforeUnmount(() => {
         :can-edit="isAdmin"
         @close="isSettingsOpen = false"
         @import="handleImport"
+        @open-cloud="handleOpenCloud"
+        @cloud-toggle="handleCloudToggle"
       />
     </template>
+
+    <!-- ========== 云端配置面板（管理员：发布与版本回滚） ========== -->
+    <CloudPanel
+      v-if="showCloudPanel"
+      :show="showCloudPanel"
+      :can-edit="isAdmin"
+      @close="showCloudPanel = false"
+      @published="handleCloudPublished"
+    />
 
     <!-- ========== 页脚 ========== -->
     <template #footer>

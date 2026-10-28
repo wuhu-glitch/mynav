@@ -11,6 +11,12 @@ dist-ssr/
 .env
 .env.*
 !.env.example
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+
+# wrangler 本地状态（本地 KV 数据 / 缓存）
+.wrangler/
 
 # 日志
 *.log
