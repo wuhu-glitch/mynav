@@ -1,0 +1,37 @@
+version: 2
+
+# 依赖更新策略：只有 1 个运行时依赖，更新频率低，所以按周检查、合并成组提 PR，
+# 避免刷屏；安全公告由 GitHub 直接推送，不受这里的频率限制。
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 3
+    versioning-strategy: increase
+    commit-message:
+      prefix: "deps"
+    groups:
+      patch-and-minor:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      # Vite 大版本升级会显著增大首屏体积（实测 92.9KB → 147.5KB），
+      # 等生态稳定后手动评估，不让机器人直接提 PR
+      - dependency-name: vite
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@vitejs/plugin-vue"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "ci"
+    groups:
+      actions:
+        patterns: ["*"]

@@ -7,6 +7,7 @@ import {
   withDeletion,
   diffFromItems
 } from '../utils/navDiff.js'
+import { isSafeUrl } from '../utils/url.js'
 
 /**
  * useNavData —— 导航数据（public/nav.json）管理
@@ -56,6 +57,19 @@ const defaultNavData = {
   items: []
 }
 
+/**
+ * 纵深防御：本地差异里的 URL 也要过一遍协议白名单。
+ *
+ * 这段数据理论上只会被本站写入，但浏览器扩展、控制台脚本、其它同类站点
+ * 都可能改写 localStorage；如果放着不管，一条 javascript: 记录就能让
+ * 卡片在下次打开时变成「点击执行」的入口。不合法的覆盖项直接丢弃，
+ * 页面回落到 nav.json 里的原始链接。
+ */
+function filterUnsafeOverrides(diff) {
+  diff.overrides = diff.overrides.filter((item) => isSafeUrl(item.url))
+  return diff
+}
+
 /** 从 localStorage 读出本地差异（数据损坏时降级为空差异） */
 function readStoredDiff() {
   try {
@@ -63,8 +77,8 @@ function readStoredDiff() {
     if (!raw) return { items: emptyDiff(), pinned: emptyDiff() }
     const parsed = JSON.parse(raw)
     return {
-      items: normalizeDiff(parsed?.items),
-      pinned: normalizeDiff(parsed?.pinned)
+      items: filterUnsafeOverrides(normalizeDiff(parsed?.items)),
+      pinned: filterUnsafeOverrides(normalizeDiff(parsed?.pinned))
     }
   } catch (error) {
     console.warn('读取本地导航改动失败，已忽略:', error)

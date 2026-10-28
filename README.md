@@ -403,6 +403,24 @@ https://你的域名/?admin=0
 
 这类告警的影响面只在 `npm run dev` 起的本地开发服务器，构建产物 `dist` 是纯静态文件，不包含 dev server 代码，线上不受影响。同时已把 `vite.config.js` 的开发服务器改为只监听 `127.0.0.1`，不接受局域网连接。等 Vite 8 生态稳定、体积回归后再升级。
 
+### 安全基线一览
+
+完整威胁模型、边界与部署侧建议见 [SECURITY.md](./SECURITY.md)。速查：
+
+| 防护 | 落地位置 | 说明 |
+| --- | --- | --- |
+| CSP 默认全禁 | `public/_headers` | `default-src 'none'` + 逐项白名单；`script-src 'self'` 挡内联/外链脚本 |
+| URL 协议白名单 | `src/utils/url.js` | 跳转、保存、导入三处共用一套判定，只放行 http/https |
+| CSS 注入转义 | `src/utils/url.js` → `toSafeCssUrl` | 背景图地址实体化 `"` `(` `)` 后进 `url("…")` |
+| 存储读取二次校验 | `src/composables/useNavData.js` | localStorage 里的链接再次过协议白名单 |
+| 防点击劫持 | `X-Frame-Options` + `frame-ancestors` | 不允许被嵌入 iframe |
+| 防降级 | `Strict-Transport-Security` | 一年期 HSTS |
+| 供应链固定 | `package.json` 精确版本 + `npm ci` | CI 里 `--ignore-scripts`，仅 1 个运行时依赖 |
+| 回归防护 | `.github/workflows/ci.yml` | 单测 + 构建 + 产物自检（含 CSP、nav.json、_redirects） |
+
+另外三件事代码管不到，部署后请在 Cloudflare 控制台确认：**Always Use HTTPS 开启**、
+**Minimum TLS 1.2+**、**绑定自有域名时再开 HSTS**。
+
 ## 🛠️ 常见问题
 
 ### Q1: 构建后首页空白？

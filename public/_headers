@@ -1,32 +1,54 @@
 # Cloudflare Pages 响应头配置
 #
-# 作用对象：构建产物里的所有静态资源。构建完 npm run build 后，
-# 这个文件会被原样复制到 dist/_headers，由 Cloudflare Pages 在边缘生效。
-#
-# 设计原则：站点不需要任何第三方脚本、字体或接口，所以一律收紧到 'self'，
-# 只有背景图允许外部 https 图片（用户可以在设置里填自己的图床地址）。
+# 构建后会被原样复制到 dist/_headers，由 Cloudflare Pages 在边缘生效。
+# 原则：本站不需要任何第三方脚本、字体、接口，因此默认拒绝一切
+# （default-src 'none'），再逐项按白名单放开。
 
 /*
-  # 禁止浏览器猜测 MIME 类型（防止把 .json 当脚本执行）
+  # ── 传输与嗅探 ────────────────────────────────────────────
+  # 强制一年内的 HTTPS 访问（Pages 本身只提供 HTTPS，这条防降级与首访问劫持）
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  # 禁止浏览器猜测 MIME 类型，避免把 .json 当脚本执行
   X-Content-Type-Options: nosniff
-  # 不允许被嵌入 iframe，避免点击劫持
-  X-Frame-Options: DENY
-  # 跨站跳转时不泄露完整来源地址
-  Referrer-Policy: strict-origin-when-cross-origin
-  # 关闭本页用不到的硬件与兴趣组权限
-  Permissions-Policy: geolocation=(), camera=(), microphone=(), payment=(), usb=(), interest-cohort=()
-  # 内容安全策略：
-  #   script-src 'self'      —— 只允许打包后的自有脚本
-  #   style-src 'unsafe-inline' —— Vue 的 :style 绑定与 Tailwind 需要行内样式
-  #   img-src https: data:   —— 图标为内联 SVG，背景图允许用户自填的 https 图片与本地 data URL
-  #   connect-src 'self'     —— 只允许同源请求（导航数据来自自身 /nav.json）
-  #   frame-ancestors 'none' —— 与 X-Frame-Options 双保险
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'
+  # 禁止跨域策略文件（旧 Flash/PDF 时代的攻击面）
+  X-Permitted-Cross-Domain-Policies: none
+  # 关闭预解析，减少对外泄露的访问意图
+  X-DNS-Prefetch-Control: off
 
-# 导航数据可能常改，给一个短缓存，避免更新后访客长时间看到旧链接
+  # ── 嵌入与跳转 ────────────────────────────────────────────
+  # 不允许被 iframe 嵌套（防点击劫持）
+  X-Frame-Options: DENY
+  # 跨站跳转只带 origin，不带完整路径与查询串
+  Referrer-Policy: strict-origin-when-cross-origin
+  # 关闭首页用不到的硬件权限
+  Permissions-Policy: geolocation=(), camera=(), microphone=(), payment=(), usb=(), midi=(), serial=(), interest-cohort=()
+
+  # ── 进程隔离 ──────────────────────────────────────────────
+  # 打开的第三方页面拿不到本站的 window 引用
+  Cross-Origin-Opener-Policy: same-origin
+  # 本站资源不允许被其它站点以跨域方式加载
+  Cross-Origin-Resource-Policy: same-origin
+
+  # ── 内容安全策略 ──────────────────────────────────────────
+  #   default-src 'none'        默认全禁，下面逐条放开
+  #   script-src 'self'         只允许打包产物里的自有脚本
+  #   style-src 'unsafe-inline' Vue 的 :style 绑定与 Tailwind 需要行内样式
+  #   img-src https: data:      图标是内联 SVG；背景图支持用户自填的 https 图与本地 data URL
+  #   connect-src 'self'        只允许同源请求（导航数据来自本站 /nav.json）
+  #   base-uri 'none'           禁止 <base> 改写相对地址（防 base 标签劫持）
+  #   form-action 'none'        站点没有表单提交
+  #   frame-ancestors 'none'    与 X-Frame-Options 双保险
+  #   upgrade-insecure-requests 自动把潜在的 http 子资源升级为 https
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'; worker-src 'none'; media-src 'none'; child-src 'none'; upgrade-insecure-requests
+
+# 导航数据会经常改，给短缓存，避免访客长时间看到旧链接
 /nav.json
   Cache-Control: public, max-age=300, must-revalidate
 
-# 带哈希的构建产物可以长缓存
+# 带哈希的构建产物可以长缓存（内容变则文件名变）
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+
+# HTML 入口不缓存，保证发布后立刻拿到新的资源引用
+/index.html
+  Cache-Control: no-cache
