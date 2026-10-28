@@ -171,6 +171,20 @@ const titleClass = computed(() => [
   height: 40px;
 }
 
+/* 窄屏放大点击区，避免和时钟/新增按钮挤在一起时点错 */
+@media (max-width: 640px) {
+  .mynav-icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* 移动端工具按钮右对齐，和标题形成「左标题 / 右操作」的清晰分区 */
+  .mynav-header-actions {
+    justify-content: flex-end;
+    width: 100%;
+  }
+}
+
 .mynav-icon-btn.active {
   @apply text-cyan-400 border-cyan-400;
   box-shadow: 0 0 15px rgba(34, 211, 238, 0.5);

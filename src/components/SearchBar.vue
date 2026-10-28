@@ -173,6 +173,8 @@ defineExpose({ focus })
          transition-colors
          border-r border-gray-700
          hover:text-cyan-400;
+  /* 触摸友好：按钮高度不低于 40px（原 py-2 只有 36px，手机上不好点） */
+  min-height: 40px;
 }
 
 .mynav-chevron {
@@ -184,6 +186,8 @@ defineExpose({ focus })
          bg-transparent
          text-white
          outline-none;
+  /* 移动端字号 < 16px 时 iOS Safari 会自动放大页面，这里强制 16px 防跳 */
+  font-size: 16px;
 }
 
 .mynav-search-btn {
@@ -191,6 +195,17 @@ defineExpose({ focus })
          flex items-center justify-center
          text-cyan-400
          hover:bg-cyan-500/10;
+  /* 触摸友好：原来 p-2 + 24px 图标只有 32×32，手指容易点空 */
+  width: 40px;
+  height: 40px;
+}
+
+/* 窄屏再放大一点，保证拇指可点 */
+@media (max-width: 640px) {
+  .mynav-search-btn {
+    width: 44px;
+    height: 44px;
+  }
 }
 
 .mynav-search-btn:hover {
@@ -199,6 +214,13 @@ defineExpose({ focus })
 
 .mynav-search-hint {
   @apply flex items-center justify-center gap-2 mt-3 text-xs text-gray-500;
+}
+
+/* 手机上没物理键盘，「按 / 聚焦」提示没有意义，直接隐藏省出竖向空间 */
+@media (max-width: 640px) {
+  .mynav-search-hint {
+    display: none;
+  }
 }
 
 kbd {
