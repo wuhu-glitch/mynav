@@ -141,52 +141,59 @@ npm run smoke
 用无头浏览器打开 `dist`，点开「设置」与「编辑模式 → 新增链接」，断言异步分包后的
 面板与弹窗确实渲染出来。需要本机有 Edge 或 Chrome（找不到时可用 `EDGE_PATH` 指定）。
 
-## 🌍 Cloudflare Pages 部署
+## 🌍 发布与部署
 
-### 方式一：手动上传（推荐新手）
+三条路，按推荐顺序排列。项目当前是本地仓库、`main` 分支、还没有远程。
 
-1. **构建项目**
-   ```bash
-   npm run build
-   ```
+### 方式一：GitHub + Cloudflare Pages 连接（推荐，零密钥）
 
-2. **上传 dist 目录**
-   - 登录 Cloudflare 控制台
-   - 进入 Pages → 创建项目 → 选择本地目录
-   - 本地目录选择 `./dist`
-   - 构建命令：`npm run build`（可选）
-   - 构建输出目录：`dist`（可选）
-
-3. **配置路由规则**
-
-   在 Cloudflare Pages 设置中添加以下路由规则（可选）：
-
-   ```
-   https://your-project.pages.dev/*  → /index.html
-   https://your-project.pages.dev/*/* → /index.html
-   ```
-
-### 方式二：自动部署（GitHub）
-
-1. **推送到 GitHub**
+1. 在 GitHub 新建空仓库（**不要**勾初始化 README / .gitignore，否则首推会冲突），假设地址是
+   `https://github.com/你的用户名/mynav.git`
+2. 关联远程并推送：
 
    ```bash
-   git add .
-   git commit -m "Initial commit"
-   git remote add origin your-github-repo-url
+   git remote add origin https://github.com/你的用户名/mynav.git
+   git branch -M main
    git push -u origin main
    ```
 
-2. **配置 Cloudflare Pages**
+3. Cloudflare 控制台 → **Workers & Pages** → Create → **Pages** → Connect to Git → 选中该仓库
+   - Framework preset：`Vite`
+   - Build command：`npm run build`
+   - Build output directory：`dist`
+   - 环境变量：`NODE_VERSION = 22`（Pages 默认 Node 版本可能偏低）
+4. 之后每次 push 到 `main` 自动构建发布，PR 会自动生成预览环境。
 
-   - 登录 Cloudflare → Pages → Import project from Git
-   - 选择你的 GitHub 仓库
-   - 构建命令：`npm run build`
-   - 构建输出目录：`dist`
+> Pages 项目名决定默认域名，形如 `<项目名>.pages.dev`。
 
-3. **自动部署**
+### 方式二：GitHub Actions 直接发布（仓库已带 workflow）
 
-   每次推送到 GitHub 主分支都会触发自动构建并部署。
+`.github/workflows/deploy.yml` 已就绪：push 到 `main`/`master` 时执行 `npm ci` + `npm run build`，
+再用 wrangler 发布到 Pages 项目 `mynav`。
+
+在 GitHub 仓库 Settings → Secrets and variables → Actions 里添加两个 secret：
+
+- `CLOUDFLARE_API_TOKEN`：控制台 My Profile → API Tokens → Create Token，
+  用模板 *Edit Cloudflare Workers*，或自定义权限 `Account → Cloudflare Pages: Edit`
+- `CLOUDFLARE_ACCOUNT_ID`：控制台 Overview 右侧的 Account ID
+
+若你的 Pages 项目名不叫 `mynav`，同步修改 `deploy.yml` 里的 `--project-name`。
+
+### 方式三：本地直传 dist（不接 Git）
+
+```bash
+npm run build
+npx wrangler pages deploy dist --project-name=mynav
+```
+
+首次运行会要求 `wrangler login`（浏览器授权）。也可以走控制台
+Create → Pages → **Upload assets**，直接把 `dist` 拖进去。
+
+### SPA 路由说明
+
+`public/_redirects` 的内容是 `/*    /index.html   200`，构建后随 `dist` 一起上传。
+因此刷新任意路径（例如 `/settings`）都会回落到 `index.html`，**不需要**再去控制台配额外的路由规则。
+打包产物里可直接确认：`dist/_redirects`。
 
 ## ⚙️ 导航数据管理
 
