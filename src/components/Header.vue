@@ -19,6 +19,8 @@ const props = defineProps({
   subtitle: { type: String, default: '' },
   // 是否处于编辑模式
   isEditMode: { type: Boolean, default: false },
+  // 是否显示编辑入口（默认只读：只有管理员才看得到铅笔按钮）
+  canEdit: { type: Boolean, default: false },
   // 设置面板是否打开
   isSettingsOpen: { type: Boolean, default: false }
 })
@@ -49,8 +51,9 @@ const titleClass = computed(() => [
         <!-- 扩展区：时钟等 -->
         <slot name="actions" />
 
-        <!-- 编辑模式开关 -->
+        <!-- 编辑模式开关（仅管理员可见） -->
         <button
+          v-if="props.canEdit"
           class="mynav-icon-btn"
           :class="{ active: props.isEditMode }"
           type="button"

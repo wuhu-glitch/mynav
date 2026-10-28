@@ -25,6 +25,7 @@ import { useNavData } from './composables/useNavData'
 import { useLocalStorage } from './composables/useLocalStorage'
 import { useCyberTheme } from './composables/useCyberTheme'
 import { parseBackup, mergeNavData } from './utils/backup'
+import { bootstrapAdmin } from './utils/adminMode'
 
 // ==================== 数据与设置（单例共享） ====================
 const { navData, loadNavData, applyImportedData } = useNavData()
@@ -61,6 +62,12 @@ setNavDataProvider(() => navData.value)
 // ==================== 页面状态 ====================
 const filterCtrl = ref('')        // 搜索关键词（同时驱动卡片实时过滤）
 const categoryTab = ref('全部')   // 当前分类标签
+/**
+ * 是否管理员（默认只读）。
+ * 访客可以正常点开所有链接，但看不到编辑入口；
+ * 站点主人访问 `?admin=1` 一次后会被记住，之后正常打开也有编辑入口。
+ */
+const isAdmin = ref(false)
 const isEditMode = ref(false)     // 是否处于编辑模式
 const isSettingsOpen = ref(false) // 设置面板开关
 const editingItem = ref(null)     // 正在编辑的链接（null = 新增）
@@ -81,6 +88,8 @@ function showNotice(type, lines) {
 
 // ==================== 数据加载与全局同步 ====================
 onMounted(async () => {
+  // 先判定只读/管理员：?admin=1 开启后会把标记记在 localStorage，并清理地址栏
+  isAdmin.value = bootstrapAdmin()
   await loadNavData()
   prefetchPanels()
 })
@@ -159,6 +168,8 @@ const filteredLinks = computed(() => {
 
 // ==================== 编辑弹窗 ====================
 const openEdit = (item) => {
+  // 只读模式下即使有人强行触发事件，也不打开编辑弹窗
+  if (!isAdmin.value) return
   editingItem.value = item
   showEditModal.value = true
 }
@@ -240,8 +251,9 @@ onBeforeUnmount(() => {
         :title="settings.siteTitle"
         :subtitle="settings.siteSubtitle"
         :is-edit-mode="isEditMode"
+        :can-edit="isAdmin"
         :is-settings-open="isSettingsOpen"
-        @toggle-edit="isEditMode = !isEditMode"
+        @toggle-edit="isEditMode = isAdmin && !isEditMode"
         @toggle-settings="isSettingsOpen = !isSettingsOpen"
         @add="openEdit(null)"
       >
@@ -326,6 +338,7 @@ onBeforeUnmount(() => {
     <template #settings-panel>
       <SettingsPanel
         v-if="isSettingsOpen"
+        :can-edit="isAdmin"
         @close="isSettingsOpen = false"
         @import="handleImport"
       />

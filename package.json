@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview --port 3000",
     "icons": "node scripts/build-icons.mjs",
-    "test": "node scripts/test-backup.mjs && node scripts/test-nav-diff.mjs && node scripts/test-import-flow.mjs",
+    "test": "node scripts/test-admin-mode.mjs && node scripts/test-backup.mjs && node scripts/test-nav-diff.mjs && node scripts/test-import-flow.mjs",
     "smoke": "node scripts/smoke-e2e.mjs"
   },
   "dependencies": {

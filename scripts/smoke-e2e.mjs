@@ -141,9 +141,20 @@ async function main() {
     return { ok: !!el, closed: !document.querySelector('.mynav-settings-panel') }
   })()`)
 
+  // 默认访客是只读的：不应出现编辑入口，但设置按钮要在
+  const readonly = await evaluate(`({
+    editBtn: [...document.querySelectorAll('button')].some((b) => b.title === '进入编辑模式'),
+    settingsBtn: [...document.querySelectorAll('button')].some((b) => b.title === '设置')
+  })`)
+
+  // 带 ?admin=1 重进页面：应出现编辑入口，并能打开编辑弹窗
+  await send('Page.enable')
+  await send('Page.navigate', { url: `http://127.0.0.1:${PORT}/?admin=1` })
+  await sleep(2600)
+
   const modal = await evaluate(`(async () => {
     const editBtn = [...document.querySelectorAll('button')].find((b) => b.title === '进入编辑模式')
-    if (!editBtn) return { ok: false, reason: '找不到编辑模式开关' }
+    if (!editBtn) return { ok: false, reason: '管理员模式下仍找不到编辑入口' }
     editBtn.click()
     await new Promise((r) => setTimeout(r, 500))
     const addBtn = [...document.querySelectorAll('button')].find((b) => b.title === '新增链接')
@@ -157,7 +168,7 @@ async function main() {
     }
   })()`)
 
-  const result = { initial, panel, modal }
+  const result = { initial, panel, readonly, modal }
   console.log(JSON.stringify(result, null, 2))
 
   ws.close()
@@ -165,7 +176,13 @@ async function main() {
   server.close()
   await rm(profile, { recursive: true, force: true }).catch(() => {})
 
-  const passed = initial.cards > 0 && panel.ok && modal.ok && modal.fields > 0
+  const passed =
+    initial.cards > 0 &&
+    panel.ok &&
+    readonly.editBtn === false &&
+    readonly.settingsBtn === true &&
+    modal.ok &&
+    modal.fields > 0
   process.exit(passed ? 0 : 1)
 }
 
