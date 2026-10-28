@@ -12,10 +12,12 @@
 import { ref, computed } from 'vue'
 import { Icon as IconifyIcon } from '@iconify/vue'
 import { useLocalStorage } from '../composables/useLocalStorage'
+import { useNavData } from '../composables/useNavData'
 
 const emit = defineEmits(['close', 'import'])
 
 const { settings, resetSettings, exportData } = useLocalStorage()
+const { resetCustomNav } = useNavData()
 
 // 备份导入用的隐藏文件输入框
 const importInput = ref(null)
@@ -65,16 +67,31 @@ const effectToggles = [
 // 数据来源说明（隐私优先，全部本地）
 const storageTip = computed(() => '所有设置仅保存在本机 localStorage，不会上传到任何服务器。')
 
-// 恢复默认：一次只重置单项太麻烦，这里整体重置并二次确认
+// 恢复默认：整体重置外观设置，并清掉本地新增/修改/删除过的链接改动
 const handleReset = () => {
-  if (!window.confirm('确定恢复全部默认设置？此操作会覆盖当前主题与布局。')) return
+  if (
+    !window.confirm(
+      '确定恢复全部默认设置？\n\n这会重置主题、布局与特效，并丢弃你在页面上对链接做过的增删改（nav.json 原始配置会恢复）。'
+    )
+  ) {
+    return
+  }
   resetSettings()
+  resetCustomNav()
 }
 
 // 选择背景图片
+// 注意：图片会转成 DataURL 存进 localStorage，主流浏览器单域名上限约 5MB，
+// 因此这里限制在 1.5MB 以内，避免「设置一存就写满配额」导致整份设置丢失。
+const MAX_BG_IMAGE_BYTES = 1.5 * 1024 * 1024
 const handleBgImageChange = (event) => {
   const file = event.target?.files?.[0]
   if (!file) return
+  if (file.size > MAX_BG_IMAGE_BYTES) {
+    window.alert('背景图片不能超过 1.5MB（要存进浏览器 localStorage），请换一张小一点的。')
+    event.target.value = ''
+    return
+  }
   const reader = new FileReader()
   reader.onload = (e) => {
     settings.value.bgImage = String(e.target?.result || '')
@@ -384,6 +401,10 @@ const triggerImport = () => importInput.value?.click()
             class="hidden"
             @change="emit('import', $event)"
           />
+
+          <p class="section-tip">
+            备份内容：外观设置 + 你新增/修改过的链接。分类与搜索引擎始终以 nav.json 为准，不会被备份覆盖。
+          </p>
         </section>
       </div>
     </aside>

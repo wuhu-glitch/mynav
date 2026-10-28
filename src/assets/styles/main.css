@@ -313,6 +313,72 @@ body {
    全局同名选择器优先级更低、永远会被盖掉，改在这里也不生效；
    现在统一由 Header.vue 读取 --mynav-title-size(-sm) 控制。 */
 
+/* ========== 导入结果提示（右上角浮层） ==========
+   导入备份后把「成功条数 / 跳过原因」逐条列出，替代原来的阻塞式 alert */
+.mynav-notice {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-width: min(26rem, calc(100vw - 2rem));
+  padding: 0.9rem 2.2rem 0.9rem 1rem;
+  background: rgba(10, 14, 24, 0.94);
+  border: 1px solid var(--mynav-cyan-400, #22d3ee);
+  border-left-width: 3px;
+  border-radius: 6px;
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.25);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  animation: mynav-notice-in 0.22s ease-out;
+}
+
+/* 失败态：换成洋红，和成功态区分开 */
+.mynav-notice--error {
+  border-color: #ec4899;
+  box-shadow: 0 0 18px rgba(236, 72, 153, 0.28);
+}
+
+.mynav-notice__line {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--mynav-text-main, #e2e8f0);
+  word-break: break-word;
+}
+
+.mynav-notice__close {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.5rem;
+  padding: 0 0.25rem;
+  font-size: 1rem;
+  line-height: 1.2;
+  color: var(--mynav-text-dim, #94a3b8);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.mynav-notice__close:hover,
+.mynav-notice__close:focus-visible {
+  color: var(--mynav-cyan-400, #22d3ee);
+  outline: none;
+}
+
+@keyframes mynav-notice-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* 打印样式 */
 @media print {
   * {

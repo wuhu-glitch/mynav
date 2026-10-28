@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview --port 3000"
+    "preview": "vite preview --port 3000",
+    "test": "node scripts/test-backup.mjs && node scripts/test-nav-diff.mjs && node scripts/test-import-flow.mjs"
   },
   "dependencies": {
     "vue": "^3.4.0"
