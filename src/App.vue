@@ -270,8 +270,11 @@ const filteredLinks = computed(() => {
     if (categoryTab.value === '全部') return navData.value?.items || []
     const cat = categories.value.find((c) => c.title === categoryTab.value)
     if (!cat?.filter) return navData.value?.items || []
-    return (navData.value?.items || []).filter((item) =>
-      item.tags?.some((tag) => cat.filter.includes(tag))
+    return (navData.value?.items || []).filter(
+      // 分类命中规则：标签命中 filter 列表，或条目自己声明的 category 就是该分类。
+      // 早期只认 tags，导致「在弹窗里选了分类但没填标签」的链接保存后在任何分类下都看不见。
+      (item) =>
+        item.tags?.some((tag) => cat.filter.includes(tag)) || item.category === cat.title
     )
   }
 
@@ -291,6 +294,34 @@ const openEdit = (item) => {
   if (!isAdmin.value) return
   editingItem.value = item
   showEditModal.value = true
+}
+
+/**
+ * 链接增删改之后的反馈。
+ *
+ * 之前这里没有任何监听：弹窗关掉就「什么都没发生」——尤其在下面两种情况下
+ * 用户会以为保存失败，其实是生效了：
+ *   1. 当前停留在某个分类标签，新链接的分类/标签又不在该分类里 → 卡片被过滤掉；
+ *   2. 改动只写在本机 localStorage，访客看到的仍是线上已发布版本。
+ * 现在统一：把视线拉回「全部」+ 清空搜索，并明确告诉用户改动落在哪一层。
+ */
+const handleEditSaved = (payload) => {
+  const action = payload?.action
+  const name = payload?.item?.name || '链接'
+  const publishTip = settings.value.cloudSync
+    ? '想让所有访客看到：设置 → 云端公共配置 → 发布当前配置'
+    : ''
+
+  if (action === 'added') {
+    // 新增后强制回到「全部」并清空关键词，保证新卡片一定出现在视野里
+    categoryTab.value = '全部'
+    filterCtrl.value = ''
+    showNotice('ok', [`已添加「${name}」，已保存到本机浏览器`, publishTip])
+  } else if (action === 'updated') {
+    showNotice('ok', [`已更新「${name}」`, publishTip])
+  } else if (action === 'deleted') {
+    showNotice('ok', [`已删除「${name}」`, publishTip])
+  }
 }
 
 // ==================== 导入备份 ====================
@@ -508,7 +539,12 @@ onBeforeUnmount(() => {
     <CyberEffect />
 
     <!-- ========== 编辑弹窗 ========== -->
-    <EditModal v-model:show="showEditModal" :item="editingItem" />
+    <EditModal
+      v-model:show="showEditModal"
+      :item="editingItem"
+      :default-category="categoryTab === '全部' ? '' : categoryTab"
+      @save="handleEditSaved"
+    />
 
     <!-- ========== 管理员登录（服务端校验口令，成功后下发 HttpOnly 会话） ========== -->
     <AdminLogin v-model:show="showAdminLogin" @success="handleAdminSuccess" />

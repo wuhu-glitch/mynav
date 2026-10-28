@@ -14,7 +14,9 @@ import { normalizeUrl } from '../utils/url'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
-  item: { type: Object, default: null }
+  item: { type: Object, default: null },
+  // 新增时的默认分类：跟随当前所在分类标签，省得每次都手动选
+  defaultCategory: { type: String, default: '' }
 })
 
 const emit = defineEmits(['update:show', 'save'])
@@ -54,7 +56,8 @@ watch(() => props.show, (visible) => {
       desc: props.item.desc || ''
     }
   } else {
-    formData.value = createEmptyForm()
+    // 新增：带上「当前分类」，避免保存后因为没分类而在分类视图里消失
+    formData.value = { ...createEmptyForm(), category: props.defaultCategory || '' }
   }
   errors.value = {}
   nextTick(() => {
@@ -101,11 +104,13 @@ const handleSubmit = () => {
   if (formData.value.category) payload.category = formData.value.category
 
   if (isEditing.value) {
+    const merged = { ...props.item, ...payload, id: props.item.id }
     updateNavItem(props.item.id, payload)
-    emit('save', 'updated')
+    emit('save', { action: 'updated', item: merged })
   } else {
-    addNavItem({ id: `custom-${Date.now()}`, ...payload })
-    emit('save', 'added')
+    const created = { id: `custom-${Date.now()}`, ...payload }
+    addNavItem(created)
+    emit('save', { action: 'added', item: created })
   }
   close()
 }
@@ -114,8 +119,9 @@ const handleSubmit = () => {
 const handleDelete = () => {
   if (!props.item?.id) return
   if (!window.confirm(`确定删除「${props.item.name}」？`)) return
+  const removed = { ...props.item }
   removeNavItem(props.item.id)
-  emit('save', 'deleted')
+  emit('save', { action: 'deleted', item: removed })
   close()
 }
 </script>
