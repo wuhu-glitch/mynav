@@ -13,6 +13,7 @@ import { ref, computed } from 'vue'
 import { Icon as IconifyIcon } from '@iconify/vue'
 import { useLocalStorage } from '../composables/useLocalStorage'
 import { useNavData } from '../composables/useNavData'
+import { isSafeImageSource } from '../utils/url'
 
 const props = defineProps({
   // 只有管理员才看得到「数据与备份」区（导入会改变本地内容）
@@ -26,6 +27,9 @@ const { resetCustomNav } = useNavData()
 
 // 备份导入用的隐藏文件输入框
 const importInput = ref(null)
+
+// 自定义背景图地址是否可用（不可用时页面会提示，样式层也会拒绝渲染）
+const bgImageOk = computed(() => isSafeImageSource(settings.value.bgImage))
 
 // 主题色候选（与 tailwind.config.js 的 accent 色板保持一致）
 const accentColors = [
@@ -226,6 +230,10 @@ const triggerImport = () => importInput.value?.click()
                 <input type="file" accept="image/*" class="hidden" @change="handleBgImageChange" />
               </label>
             </div>
+            <!-- 地址不合法时明确告知：这类值不会进 CSS，避免用户以为设置没生效 -->
+            <p v-if="settings.bgImage && !bgImageOk" class="section-tip">
+              该地址不会生效：只支持 http/https 图片链接，或点右侧上传本地图片
+            </p>
           </div>
 
           <!-- 遮罩透明度 -->

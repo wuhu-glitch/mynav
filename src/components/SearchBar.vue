@@ -11,6 +11,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { Icon as IconifyIcon } from '@iconify/vue'
 import { useLocalStorage } from '../composables/useLocalStorage'
+import { isSafeUrl } from '../utils/url'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -77,6 +78,11 @@ const handleSubmit = () => {
     return
   }
   const url = currentEngine.value.url.replace('{query}', encodeURIComponent(query))
+  // 搜索引擎地址来自 nav.json，属于外部数据：非 http(s) 直接不跳转
+  if (!isSafeUrl(url)) {
+    console.warn('搜索引擎地址不安全，已阻止跳转:', url)
+    return
+  }
   emit('search', query)
   window.open(url, '_blank', 'noopener,noreferrer')
 }

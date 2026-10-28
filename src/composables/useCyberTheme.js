@@ -1,4 +1,5 @@
 import { ref, computed } from 'vue'
+import { toSafeCssUrl } from '../utils/url'
 
 export function useCyberTheme(settingsRef) {
   const isDarkMode = computed(() => settingsRef.value.theme === 'dark')
@@ -51,8 +52,9 @@ export function useCyberTheme(settingsRef) {
         break
 
       case 'image':
-        bgGradient = `url(${bgImage.value})`
-        if (bgImage.value) {
+        // 自定义背景图：用白名单 + 转义后的 CSS url，避免用户输入里带 `");` 闭合声明做注入
+        bgGradient = toSafeCssUrl(bgImage.value)
+        if (bgGradient) {
           return {
             backgroundImage: bgGradient,
             backgroundSize: 'cover',

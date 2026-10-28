@@ -21,6 +21,11 @@
 export const BACKUP_APP = 'MyNav'
 export const BACKUP_SCHEMA_VERSION = 1
 
+// URL 安全规则统一放在 utils/url.js，这里直接复用并再导出，
+// 保证「导入校验」和「点击跳转」用的是同一套判定。
+import { isSafeUrl } from './url.js'
+export { isSafeUrl }
+
 /** 备份文件大小上限：5MB。纯 JSON 的导航数据远超这个体量说明文件不对 */
 export const MAX_BACKUP_BYTES = 5 * 1024 * 1024
 
@@ -60,19 +65,10 @@ const MAX_ID = 64
 const ICON_RE = /^[a-z0-9-]+:[a-z0-9-]+$/i
 
 /**
- * 判断是否为可安全打开的链接。
+ * 判断是否为可安全打开的链接（实现见 utils/url.js）。
  * 只放行 http/https：javascript: / data: / vbscript: / file: 一律拒绝
  * （卡片点击会 window.open(url)，不能让外部文件控制打开什么）。
  */
-export function isSafeUrl(url) {
-  if (typeof url !== 'string' || !url.trim()) return false
-  try {
-    const parsed = new URL(url.trim())
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
-  } catch {
-    return false
-  }
-}
 
 /** 取字符串并截断，非字符串返回空串 */
 function asString(value, max) {

@@ -10,6 +10,7 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import { Icon as IconifyIcon } from '@iconify/vue'
 import { useNavData } from '../composables/useNavData'
+import { normalizeUrl } from '../utils/url'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -61,16 +62,8 @@ watch(() => props.show, (visible) => {
   })
 })
 
-// URL 校验：允许省略协议（浏览器访问时通常会补全 https）
-const isValidUrl = (url) => {
-  try {
-    // eslint-disable-next-line no-new
-    new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`)
-    return true
-  } catch {
-    return false
-  }
-}
+// URL 校验：允许省略协议（自动补 https），但只认 http/https
+const isValidUrl = (url) => normalizeUrl(url) !== ''
 
 // 表单校验
 const validate = () => {
@@ -78,7 +71,7 @@ const validate = () => {
   if (!formData.value.name.trim()) errors.value.name = '名称不能为空'
   const url = formData.value.url.trim()
   if (!url) errors.value.url = 'URL 不能为空'
-  else if (!isValidUrl(url)) errors.value.url = 'URL 格式不正确'
+  else if (!isValidUrl(url)) errors.value.url = 'URL 格式不正确（只支持 http / https）'
   return Object.keys(errors.value).length === 0
 }
 
@@ -97,7 +90,9 @@ const handleSubmit = () => {
 
   const payload = {
     name: formData.value.name.trim(),
-    url: formData.value.url.trim(),
+    // 存规范化后的绝对地址：用户写 github.com 也会被补成 https://github.com，
+    // 避免把不含协议的字符串存进 navData 后被当成站内相对路径打开
+    url: normalizeUrl(formData.value.url),
     icon: formData.value.icon.trim() || 'mdi:link',
     tags: parseTags(formData.value.tags),
     desc: formData.value.desc.trim()
