@@ -18,7 +18,7 @@
     "deploy": "npm run build && npx --yes wrangler@3 pages deploy dist --project-name mynav --branch main --commit-dirty=true"
   },
   "dependencies": {
-    "vue": "3.5.44"
+    "vue": "3.5.45"
   },
   "devDependencies": {
     "@iconify/vue": "4.3.0",
